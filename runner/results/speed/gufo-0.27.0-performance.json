@@ -1,0 +1,59 @@
+{
+  "base_url": "http://127.0.0.1:8080/v1",
+  "started": "2026-11-13T09:48:15-0500",
+  "short": {
+    "story": {
+      "prompt_tokens": 29,
+      "completion_tokens": 256,
+      "ttft_s": 0.138,
+      "prefill_tps": 210.7,
+      "decode_tps": 34.1
+    },
+    "fridge": {
+      "prompt_tokens": 28,
+      "completion_tokens": 256,
+      "ttft_s": 0.141,
+      "prefill_tps": 199.0,
+      "decode_tps": 40.2
+    },
+    "python": {
+      "prompt_tokens": 39,
+      "completion_tokens": 256,
+      "ttft_s": 0.149,
+      "prefill_tps": 260.9,
+      "decode_tps": 60.9
+    }
+  },
+  "long": {
+    "8K": {
+      "prompt_tokens": 8127,
+      "completion_tokens": 13,
+      "ttft_s": 5.176,
+      "prefill_tps": 1570.2,
+      "decode_tps": 51.0
+    },
+    "30K": {
+      "prompt_tokens": 29828,
+      "completion_tokens": 31,
+      "ttft_s": 19.109,
+      "prefill_tps": 1560.9,
+      "decode_tps": 32.8
+    },
+    "32K": {
+      "prompt_tokens": 32556,
+      "completion_tokens": 13,
+      "ttft_s": 20.85,
+      "prefill_tps": 1561.4,
+      "decode_tps": 49.9
+    },
+    "131K": {
+      "prompt_tokens": 130274,
+      "completion_tokens": 9,
+      "ttft_s": 87.983,
+      "prefill_tps": 1480.7,
+      "decode_tps": 27.9
+    }
+  },
+  "short_avg_decode_tps": 45.1,
+  "finished": "2026-11-13T09:50:50-0500"
+}

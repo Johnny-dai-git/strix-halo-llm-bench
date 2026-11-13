@@ -53,6 +53,8 @@ Thinking off, greedy decoding, MTP drafting on. Every prompt is new, so no promp
 | Prompt, 131K | **1,688** | 1,401 | 1,433 | 373 |
 | 30,023-token prompt, seconds | **16.5** | 20.1 | 20.1 | 62.7 |
 
+**Update, 2026-11-13: Gufo 0.34.** The table above is Gufo 0.27.0 on the balanced power profile. Re-measured on 0.34.0 with the performance profile, Gufo's own `gufo bench` gives 62.3 tok/s decode with MTP (was 48.4) and 1,729 tok/s for pp2048 (was 1,515; published 1,801). About +9% of the prompt-speed gain comes from the power profile and +4–5% from the new version; the MTP decode gain (+28%) is the new version. Halogen and Strata were not re-run, so the table above stays as measured. Details and raw output: [runner/results/speed](runner/results/speed/).
+
 ### Memory and load
 
 | | Halogen v2 | Halogen + UD | Gufo + UD | Strata + UD |

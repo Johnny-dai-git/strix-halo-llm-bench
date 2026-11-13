@@ -382,6 +382,49 @@
       </table>
     </div><p class="note zh">Gufo 不开草稿时的生成速度和官方一致；pp2048 比官方低约 16%。Halogen v2 的 131K 官方数据来自 0.18.0。Strata 自带工具的结果见上面的标准测试。</p><p class="note en">Gufo's no-drafting decode matches its published figure; its pp2048 is about 16% below. Halogen's published 131K figure is from 0.18.0. Strata's own tool is the standard benchmark above.</p></details>
   </section>
+  <section id="gufo-034">
+<h3 class="sec"><span class="zh">2026-11-13 更新：Gufo 0.34 复测</span><span class="en">Update, 2026-11-13: Gufo 0.34 re-run</span></h3>
+<p class="zh">Gufo 维护者在 <a href="https://github.com/gufo-org/gufo/discussions/1208">讨论帖 #1208</a> 里指出新版更快，并建议用性能电源模式。上面所有图表是 Gufo 0.27.0、平衡模式下的结果，保持原样；这里只重测了 Gufo，Halogen 和 Strata 没有重测，所以不和它们比较。0.27.0 在同样条件下也重跑了一遍作为对照，把版本和电源模式的影响分开。IOMMU 保持开启。</p>
+<p class="en">A Gufo maintainer pointed out in <a href="https://github.com/gufo-org/gufo/discussions/1208">discussion #1208</a> that newer releases are faster and suggested the performance power profile. Every figure above is Gufo 0.27.0 on the balanced profile and stays as measured. Only Gufo was re-run here; Halogen and Strata were not, so this is not a comparison with them. Gufo 0.27.0 was re-run under the same conditions as a control, to separate the version from the power profile. IOMMU was left on.</p>
+<p class="zh"><b>结论：</b>性能模式让读提示快约 9%，生成不变；0.34 再让读提示快 4–5%，开 MTP 的生成快 28%（48.8 → 62.3 tok/s）。pp2048 现在比官方 1,801 只低 4%（之前低 16%）。</p>
+<p class="en"><b>Result:</b> the performance profile makes prompt reading about 9% faster with no change in decode; 0.34 adds 4–5% on prompts and 28% on MTP decode (48.8 → 62.3 tok/s). pp2048 is now 4% below the published 1,801 (it was 16% below).</p>
+<div class="wrap">
+      <table>
+        <thead><tr>
+          <th><span class="zh">gufo bench（3 次）</span><span class="en">gufo bench (3 reps)</span></th>
+          <th><span class="zh">0.27.0 · 平衡（原报告）</span><span class="en">0.27.0 · balanced (report)</span></th>
+          <th><span class="zh">0.27.0 · 性能</span><span class="en">0.27.0 · performance</span></th>
+          <th><span class="zh">0.34.0 · 性能</span><span class="en">0.34.0 · performance</span></th>
+          <th><span class="zh">官方公布</span><span class="en">Published</span></th>
+        </tr></thead>
+        <tbody>
+          <tr><td><span class="zh">pp2048，不开草稿</span><span class="en">pp2048, no drafting</span></td><td class="n">1,515</td><td class="n">1,650</td><td class="n best">1,729</td><td class="n">1,801</td></tr>
+          <tr><td><span class="zh">pp8192，不开草稿</span><span class="en">pp8192, no drafting</span></td><td class="n">—</td><td class="n">1,709</td><td class="n best">1,777</td><td class="n">—</td></tr>
+          <tr><td><span class="zh">pp32768，不开草稿</span><span class="en">pp32768, no drafting</span></td><td class="n">—</td><td class="n">1,656</td><td class="n best">1,722</td><td class="n">—</td></tr>
+          <tr><td><span class="zh">pp131072，不开草稿</span><span class="en">pp131072, no drafting</span></td><td class="n">—</td><td class="n">1,570</td><td class="n best">1,638</td><td class="n">—</td></tr>
+          <tr><td><span class="zh">tg128，不开草稿</span><span class="en">tg128, no drafting</span></td><td class="n">29.40</td><td class="n">29.50</td><td class="n best">30.45</td><td class="n">28.29</td></tr>
+          <tr><td><span class="zh">tg128，MTP</span><span class="en">tg128, MTP</span></td><td class="n">48.44</td><td class="n">48.78</td><td class="n best">62.29</td><td class="n">—</td></tr>
+        </tbody>
+      </table>
+    </div>
+<div class="wrap">
+      <table>
+        <thead><tr>
+          <th><span class="zh">API 测试（tok/s）</span><span class="en">API probe (tok/s)</span></th>
+          <th>0.27.0</th><th>0.34.0</th><th><span class="zh">变化</span><span class="en">Change</span></th>
+        </tr></thead>
+        <tbody>
+          <tr><td><span class="zh">短提示平均生成（256 token）</span><span class="en">Short prompts, average decode (256 out)</span></td><td class="n">45.1</td><td class="n best">51.5</td><td class="n">+14%</td></tr>
+          <tr><td><span class="zh">读提示 8K</span><span class="en">Prompt speed, 8K</span></td><td class="n">1,570</td><td class="n best">1,608</td><td class="n">+2%</td></tr>
+          <tr><td><span class="zh">读提示 30K</span><span class="en">Prompt speed, 30K</span></td><td class="n">1,561</td><td class="n best">1,596</td><td class="n">+2%</td></tr>
+          <tr><td><span class="zh">读提示 32K</span><span class="en">Prompt speed, 32K</span></td><td class="n">1,561</td><td class="n best">1,588</td><td class="n">+2%</td></tr>
+          <tr><td><span class="zh">读提示 131K</span><span class="en">Prompt speed, 131K</span></td><td class="n">1,481</td><td class="n best">1,528</td><td class="n">+3%</td></tr>
+        </tbody>
+      </table>
+    </div>
+<p class="note zh">API 测试用新的 <code>speed_probe.py</code>（原 llm-probe.sh 的提示没有保存），两个版本收到完全相同的请求，所以只在这两列之间比较，不和上面的图比较。读提示速度 = 提示 token ÷ 首个 token 的时间，包含 HTTP 和模板开销，所以提升比 gufo bench 小。原始数据：<a href="https://github.com/Johnny-dai-git/strix-halo-llm-bench/tree/main/runner/results/speed">runner/results/speed</a>。</p>
+<p class="note en">The API probe is a new <code>speed_probe.py</code> (the original llm-probe.sh prompts were not kept). Both versions got identical requests, so compare these two columns with each other, not with the figures above. Prompt speed is prompt tokens / time to first token, which includes HTTP and template overhead, so it gains less than gufo bench. Raw data: <a href="https://github.com/Johnny-dai-git/strix-halo-llm-bench/tree/main/runner/results/speed">runner/results/speed</a>.</p>
+  </section>
   </div>
 
   <div class="module" id="m-resources">
