@@ -1,435 +1,769 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-lang="zh">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Qwen3.8-Flash-Next Local Engine Evals</title>
-<meta name="description" content="Accuracy of Qwen3.8-Flash-Next on HumanEval, IFEval, GSM8K and MMLU-Pro across Halogen, Gufo and Strata on one Strix Halo machine. 中英双语.">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Halogen vs Gufo vs Strata · Qwen3.8-Flash-Next</title>
+<meta name="description" content="Qwen3.8-Flash-Next on one Ryzen AI Max+ 395 (128 GB): speed, memory, perplexity and accuracy across Halogen, Gufo and Strata. 中文 / English.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;700&display=swap">
 <style>
-:root {
-  color-scheme: light;
-  --bg: #fcfcfb;
-  --surface-2: #f3f2ef;
-  --text-primary: #0b0b0b;
-  --text-secondary: #52514e;
-  --text-muted: #75746e;
-  --grid: #e4e3df;
-  --border: #dcdbd6;
-  --accent: #2a78d6;
-  --halogen: #2a78d6;
-  --gufo: #eb6834;
-  --strata: #1baf7a;
-  --callout: #eef4fc;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --bg: #1a1a19;
-    --surface-2: #232322;
-    --text-primary: #f0efec;
-    --text-secondary: #c3c2b7;
-    --text-muted: #9a998f;
-    --grid: #30302e;
-    --border: #3a3a37;
-    --accent: #6da7ec;
-    --halogen: #3987e5;
-    --gufo: #d95926;
-    --strata: #199e70;
-    --callout: #1d2633;
+  /* Layout: five modules under a sticky nav; each section in a module pairs a chart with its numbers.
+     Four setups: Halogen v2 = lamp amber, Halogen on the GGUF = pale amber, Gufo = owl teal, Strata = rock slate. */
+  :root {
+    --bg: #f6f7f9;
+    --panel: #ffffff;
+    --fg: #1b1e24;
+    --muted: #5d6470;
+    --line: #dfe2e8;
+    --grid: #eceef2;
+    --hv2: #b8690a;
+    --hud: #e0a35a;
+    --gufo: #2d7f74;
+    --hfix: #6f3f05;
+    --strata: #5a6b85;
+    --good: #2d7f74;
+    --warn: #a3401c;
+    --f-display: "Archivo", "Noto Sans SC", "Helvetica Neue", Arial, sans-serif;
+    --f-body: "IBM Plex Sans", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+    --s-xs: .78rem; --s-sm: .875rem; --s-md: 1rem; --s-lg: 1.25rem; --s-xl: 1.75rem; --s-xxl: clamp(2rem, 5vw, 3rem);
   }
-}
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --bg: #1a1a19;
-  --surface-2: #232322;
-  --text-primary: #f0efec;
-  --text-secondary: #c3c2b7;
-  --text-muted: #9a998f;
-  --grid: #30302e;
-  --border: #3a3a37;
-  --accent: #6da7ec;
-  --halogen: #3987e5;
-  --gufo: #d95926;
-  --strata: #199e70;
-  --callout: #1d2633;
-}
-* { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
-body {
-  margin: 0; background: var(--bg); color: var(--text-primary);
-  font: 16px/1.65 system-ui, -apple-system, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
-}
-main { max-width: 920px; margin: 0 auto; padding: 24px 16px 64px; }
-a { color: var(--accent); }
-code { font: 0.88em/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: var(--surface-2); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
-header.top { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 28px; }
-.kicker { font-size: 13px; color: var(--text-muted); letter-spacing: .02em; }
-.lang { display: inline-flex; border: 1px solid var(--border); border-radius: 999px; padding: 2px; flex: none; }
-.lang button { border: 0; background: transparent; color: var(--text-secondary); font: inherit; font-size: 14px; padding: 4px 12px; border-radius: 999px; cursor: pointer; }
-.lang button[aria-pressed="true"] { background: var(--text-primary); color: var(--bg); }
-h1 { font-size: clamp(26px, 5vw, 36px); line-height: 1.25; margin: 0 0 12px; letter-spacing: -.01em; }
-h2 { font-size: 22px; margin: 48px 0 12px; line-height: 1.3; }
-h3 { font-size: 17px; margin: 28px 0 8px; }
-.lede { font-size: 18px; color: var(--text-secondary); margin: 0 0 8px; }
-.meta { font-size: 14px; color: var(--text-muted); }
-.findings { list-style: none; padding: 0; margin: 20px 0 0; display: grid; gap: 12px; }
-.findings li { background: var(--surface-2); border-radius: 10px; padding: 14px 16px; }
-.findings b { display: block; margin-bottom: 2px; }
-.callout { background: var(--callout); border-radius: 10px; padding: 14px 16px; margin: 16px 0; }
-.chart-wrap { margin: 16px 0 8px; }
-.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 14px; color: var(--text-secondary); margin: 8px 0 4px; }
-.legend span { display: inline-flex; align-items: center; gap: 6px; }
-.legend i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
-.legend i.hollow { background: transparent !important; border: 2px solid var(--text-muted); }
-.panels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 28px; }
-@media (max-width: 680px) { .panels { grid-template-columns: 1fr; } }
-.panel h3 { margin: 12px 0 2px; font-size: 15px; }
-.panel .sub { font-size: 12.5px; color: var(--text-muted); margin: 0 0 4px; }
-svg text { font-family: inherit; }
-.note { font-size: 13.5px; color: var(--text-muted); }
-.table-scroll { overflow-x: auto; margin: 12px 0; -webkit-overflow-scrolling: touch; }
-table { border-collapse: collapse; width: 100%; font-size: 14.5px; font-variant-numeric: tabular-nums; }
-th, td { text-align: right; padding: 7px 10px; border-bottom: 1px solid var(--grid); white-space: nowrap; }
-th:first-child, td:first-child { text-align: left; }
-thead th { color: var(--text-secondary); font-weight: 600; border-bottom: 1px solid var(--border); white-space: normal; vertical-align: bottom; }
-td .ci { color: var(--text-muted); font-size: 12.5px; }
-td.na { color: var(--text-muted); }
-tr.hl td { font-weight: 600; }
-.cfg td, .cfg th { white-space: normal; text-align: left; vertical-align: top; }
-.swatch { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
-pre { background: var(--surface-2); padding: 12px 14px; border-radius: 8px; overflow-x: auto; font-size: 13px; line-height: 1.5; }
-#tip { position: fixed; pointer-events: none; background: var(--text-primary); color: var(--bg); font-size: 13px; line-height: 1.45; padding: 7px 10px; border-radius: 6px; max-width: 260px; opacity: 0; transition: opacity .08s; z-index: 10; }
-footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--grid); font-size: 13.5px; color: var(--text-muted); }
-[data-l] { white-space: normal; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #13161b; --panel: #1b1f26; --fg: #e8eaee; --muted: #9aa2ae; --line: #2c323c; --grid: #242932;
+      --hv2: #f0a23a; --hud: #a8773a; --hfix: #ffd08a; --gufo: #5fbfb1; --strata: #93a6c4; --good: #5fbfb1; --warn: #f08a62;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #13161b; --panel: #1b1f26; --fg: #e8eaee; --muted: #9aa2ae; --line: #2c323c; --grid: #242932;
+    --hv2: #f0a23a; --hud: #a8773a; --hfix: #ffd08a; --gufo: #5fbfb1; --strata: #93a6c4; --good: #5fbfb1; --warn: #f08a62;
+    color-scheme: dark;
+  }
+
+  body { background: var(--bg); color: var(--fg); font-family: var(--f-body); font-size: var(--s-md); line-height: 1.6; }
+  .page { max-width: 66rem; margin: 0 auto; padding-block: 2rem 4rem; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 3.5rem; }
+
+  /* Language: zh, en, or both (English shown under Chinese) */
+  :root[data-lang="zh"] .en, :root[data-lang="en"] .zh { display: none; }
+  :root[data-lang="both"] .en { color: var(--muted); }
+  :root[data-lang="both"] p.en, :root[data-lang="both"] li .en, :root[data-lang="both"] .note.en { font-size: .92em; }
+  :root[data-lang="both"] h1 .en, :root[data-lang="both"] h2 .en, :root[data-lang="both"] h3 .en, :root[data-lang="both"] h4 .en { display: block; font-size: .6em; font-weight: 500; letter-spacing: 0; margin-top: .2em; }
+  :root[data-lang="both"] th .en, :root[data-lang="both"] .tile .lbl .en { display: block; }
+  :root[data-lang="both"] td .en { display: block; font-size: .88em; }
+  :root[data-lang="both"] li .en { display: block; margin-top: .2em; }
+
+  header.top { display: flex; flex-wrap: wrap; gap: 1rem 2rem; align-items: flex-start; justify-content: space-between; }
+  .eyebrow { font-family: var(--f-mono); font-size: var(--s-xs); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 .5rem; }
+  h1 { font-family: var(--f-display); font-weight: 700; font-size: var(--s-xxl); line-height: 1.1; margin: 0; text-wrap: balance; letter-spacing: -.01em; }
+  h1 .vs { color: var(--muted); font-weight: 500; }
+  h1 .h { color: var(--hv2); }
+  h1 .g { color: var(--gufo); }
+  h1 .s { color: var(--strata); }
+  .lede { max-width: 64ch; margin: .75rem 0 0; font-size: var(--s-lg); line-height: 1.5; }
+  .lede.en { font-size: var(--s-md); }
+  .meta { font-family: var(--f-mono); font-size: var(--s-xs); color: var(--muted); margin: .75rem 0 0; }
+
+  .lang { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 3px; background: var(--panel); flex: none; }
+  .lang button { font: 500 var(--s-sm)/1 var(--f-body); color: var(--muted); background: none; border: 0; border-radius: 999px; padding: .5rem .85rem; cursor: pointer; }
+  .lang button[aria-pressed="true"] { background: var(--fg); color: var(--bg); }
+  .lang button:focus-visible { outline: 2px solid var(--hv2); outline-offset: 2px; }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); gap: 1rem; }
+  .tile { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 1rem 1.1rem; display: grid; gap: .25rem; align-content: start; }
+  .tile .big { font-family: var(--f-display); font-weight: 700; font-size: var(--s-xl); font-variant-numeric: tabular-nums; line-height: 1.2; }
+  .tile .lbl { font-size: var(--s-sm); font-weight: 600; }
+  .tile .sub { font-size: var(--s-xs); color: var(--muted); font-variant-numeric: tabular-nums; }
+  .c-hv2 { color: var(--hv2); } .c-hud { color: var(--hud); } .c-gufo { color: var(--gufo); } .c-strata { color: var(--strata); } .c-hfix { color: var(--hfix); }
+
+  section { display: grid; gap: 1rem; min-width: 0; }
+  .modnav { scrollbar-width: none; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; display: flex; gap: .35rem; overflow-x: auto; padding-block: .6rem; background: var(--bg); border-bottom: 1px solid var(--line); }
+  .modnav a { flex: none; font-size: var(--s-sm); font-weight: 500; color: var(--muted); text-decoration: none; padding: .4rem .75rem; border-radius: 999px; white-space: nowrap; }
+  .modnav a:hover { color: var(--fg); background: var(--grid); }
+  .modnav a[aria-current="true"] { background: var(--fg); color: var(--bg); }
+  .modnav a:focus-visible { outline: 2px solid var(--hv2); outline-offset: 2px; }
+  body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+  .module { display: grid; gap: 2rem; min-width: 0; scroll-margin-top: 4.5rem; }
+  .mhead { display: grid; gap: .35rem; }
+  h2 { font-family: var(--f-display); font-weight: 700; font-size: var(--s-xxl); line-height: 1.15; margin: 0; text-wrap: balance; letter-spacing: -.01em; }
+  h3.sec { font-family: var(--f-display); font-weight: 700; font-size: var(--s-lg); line-height: 1.25; margin: 0; text-wrap: balance; }
+  h4 { font-family: var(--f-body); font-weight: 600; font-size: var(--s-md); margin: 0; }
+  p { margin: 0; max-width: 70ch; }
+  .note { font-size: var(--s-sm); color: var(--muted); }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 28rem), 1fr)); gap: 1rem; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 1.1rem 1.2rem; display: grid; gap: .75rem; min-width: 0; align-content: start; }
+
+  .key { display: flex; flex-wrap: wrap; gap: .4rem 1rem; font-size: var(--s-xs); color: var(--muted); }
+  .key i { display: inline-block; width: .7rem; height: .7rem; border-radius: 2px; margin-right: .35rem; vertical-align: -1px; }
+  .k-hv2 { background: var(--hv2); } .k-hud { background: var(--hud); } .k-gufo { background: var(--gufo); } .k-strata { background: var(--strata); } .k-hfix { background: var(--hfix); }
+
+  .figs { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr)); gap: 1rem; }
+  .figs3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); gap: 1rem; }
+  figure.fig { margin: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 1rem 1.1rem; display: grid; gap: .6rem; min-width: 0; align-content: start; }
+  figcaption { font-size: var(--s-sm); color: var(--muted); line-height: 1.5; }
+  figcaption b { color: var(--fg); font-weight: 600; }
+  :root[data-lang="both"] figcaption > .en { display: block; margin-top: .2em; }
+  details.data { font-size: var(--s-sm); display: block; }
+  details.data > summary { cursor: pointer; color: var(--muted); font-weight: 500; padding-block: .3rem; }
+  details.data > summary:hover { color: var(--fg); }
+  details.data[open] > summary { margin-bottom: .5rem; }
+  details.data .wrap + .wrap { margin-top: 1rem; }
+  .k-partial { background: transparent; border: 1px dashed var(--muted); box-sizing: border-box; }
+  .chart { width: 100%; min-height: 120px; }
+  .chart svg { display: block; width: 100%; height: auto; }
+  .chart text { font-family: var(--f-body); }
+  .chart .num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+
+  .wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: var(--s-sm); font-variant-numeric: tabular-nums; }
+  th, td { padding: .5rem .6rem; border-bottom: 1px solid var(--line); text-align: right; vertical-align: top; }
+  th { font-weight: 500; font-size: var(--s-xs); color: var(--muted); white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  td.n { font-family: var(--f-mono); white-space: nowrap; }
+  td.best { font-weight: 600; color: var(--fg); background: color-mix(in srgb, var(--good) 12%, transparent); }
+  tr.avg td { font-weight: 600; border-top: 1px solid var(--muted); }
+  th .sw { display: inline-block; width: .55rem; height: .55rem; border-radius: 2px; margin-right: .3rem; vertical-align: 0; }
+
+  ul.points { margin: 0; padding-left: 1.2rem; display: grid; gap: .6rem; max-width: 72ch; }
+  ul.points li::marker { color: var(--muted); }
+  .flag { color: var(--warn); font-weight: 600; }
+  code { font-family: var(--f-mono); font-size: .9em; background: var(--grid); padding: .05em .35em; border-radius: 4px; }
+</style>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; }
+  footer.foot { border-top: 1px solid var(--line); padding-top: 1rem; font-size: var(--s-sm); color: var(--muted); display: grid; gap: .35rem; }
+  footer.foot a, .page a { color: var(--fg); }
 </style>
 </head>
 <body>
-<main>
+<div class="page">
   <header class="top">
-    <div class="kicker" data-l="kicker"></div>
-    <div class="lang" role="group" aria-label="Language">
-      <button type="button" data-set-lang="zh" aria-pressed="false">中文</button>
-      <button type="button" data-set-lang="en" aria-pressed="false">EN</button>
+    <div>
+      <p class="eyebrow">Qwen3.8-Flash-Next · Ryzen AI Max+ 395 · 128 GB · 2026-10-29 – 11-12</p>
+      <h1><span class="h">Halogen</span> <span class="vs">vs</span> <span class="g">Gufo</span> <span class="vs">vs</span> <span class="s">Strata</span></h1>
+      <p class="lede zh">三个引擎、两套 4-bit 权重、四套配置，同一台机器、同样的请求。Halogen 用自家 v2 权重最快、最省内存；Strata 用的 UD-Q4_K_XL 权重 PPL 低约 2%；在同一份 UD-Q4_K_XL 权重上，Gufo 和 Halogen 速度接近，都明显快于 Strata。准确率方面，Halogen v2 和 Gufo + UD 四项全部持平。GSM8K 上 Halogen v2 默认低约 8 分，是因为 Halogen 默认不让回答停在 Markdown 标题行；关掉这个设置后为 96.1% 对 96.0%。</p>
+      <p class="lede en">Three engines, two 4-bit weight sets, four setups, one machine, identical requests. Halogen on its own v2 weights is the fastest and leanest; the UD-Q4_K_XL weights Strata uses score about 2% lower perplexity; on those same UD-Q4_K_XL weights, Gufo and Halogen run at similar speed, both well ahead of Strata. On accuracy, Halogen v2 and Gufo + UD tie on all four tasks. Halogen v2 trails by about 8 points on GSM8K by default because Halogen won't let a reply end on a Markdown heading line; with that setting off it is 96.1% vs 96.0%.</p>
+      <p class="meta">Halogen 0.18.18 · Gufo 0.27.0 (de15fdb) · Strata 0.2.7 / engine 0.1.52 hip-halo · Unsloth UD-Q4_K_XL @ 38bb39e</p>
+      <p class="meta"><span class="zh">准确率评测 · 完成于 2026-11-12</span><span class="en">Accuracy evals · finished 2026-11-12</span></p>
+    </div>
+    <div class="lang" role="group" aria-label="Language / 语言">
+      <button type="button" id="lang-zh" data-lang="zh" aria-pressed="true">中文</button>
+      <button type="button" id="lang-en" data-lang="en" aria-pressed="false">English</button>
+      <button type="button" id="lang-both" data-lang="both" aria-pressed="false">中 / EN</button>
     </div>
   </header>
 
-  <h1 data-l="title"></h1>
-  <p class="lede" data-l="lede"></p>
-  <p class="meta" data-l="meta"></p>
+  <nav class="modnav" aria-label="模块 / Modules">
+    <a href="#m-overview"><span class="zh">概览</span><span class="en">Overview</span></a>
+    <a href="#m-quality"><span class="zh">准确率与质量</span><span class="en">Accuracy &amp; quality</span></a>
+    <a href="#m-speed"><span class="zh">速度</span><span class="en">Speed</span></a>
+    <a href="#m-resources"><span class="zh">内存与稳定性</span><span class="en">Memory &amp; stability</span></a>
+    <a href="#m-method"><span class="zh">测试方法</span><span class="en">Method</span></a>
+  </nav>
 
-  <ul class="findings">
-    <li data-l="f1"></li>
-    <li data-l="f2"></li>
-    <li data-l="f3"></li>
-    <li data-l="f4"></li>
-  </ul>
+  <div class="module" id="m-overview">
+    <div class="mhead">
+      <h2><span class="zh">概览</span><span class="en">Overview</span></h2>
+      <p class="zh">关键数字、结论，以及四套配置分别是什么。</p>
+      <p class="en">Key numbers, the verdict, and what the four setups are.</p>
+    </div>
+  <div class="tiles">
+    <div class="tile">
+      <span class="lbl"><span class="zh">生成最快</span><span class="en">Fastest decode</span></span>
+      <span class="big c-hv2">66.7 tok/s</span>
+      <span class="sub"><span class="zh">Halogen v2 · Gufo 49.0 · Halogen UD 47.6 · Strata 34.0</span><span class="en">Halogen v2 · Gufo 49.0 · Halogen UD 47.6 · Strata 34.0</span></span>
+    </div>
+    <div class="tile">
+      <span class="lbl"><span class="zh">读 3 万 token 提示最快</span><span class="en">Fastest 30K-token prompt</span></span>
+      <span class="big c-hv2">16.5 s</span>
+      <span class="sub"><span class="zh">Halogen v2 · Gufo 20.1 · Halogen UD 20.1 · Strata 62.7</span><span class="en">Halogen v2 · Gufo 20.1 · Halogen UD 20.1 · Strata 62.7</span></span>
+    </div>
+    <div class="tile">
+      <span class="lbl"><span class="zh">PPL 最低（WikiText-2，4K）</span><span class="en">Lowest perplexity (WikiText-2, 4K)</span></span>
+      <span class="big c-gufo">4.183</span>
+      <span class="sub"><span class="zh">UD-Q4_K_XL 权重 · v2 权重 4.272</span><span class="en">UD-Q4_K_XL weights · v2 weights 4.272</span></span>
+    </div>
+    <div class="tile">
+      <span class="lbl"><span class="zh">留给其他软件最多</span><span class="en">Most memory left over</span></span>
+      <span class="big c-hv2">40.1 GiB</span>
+      <span class="sub"><span class="zh">Halogen v2 · Gufo 约 19–25 · Halogen UD 19.6 · Strata 约 6</span><span class="en">Halogen v2 · Gufo ~19–25 · Halogen UD 19.6 · Strata ~6</span></span>
+    </div>
+    <div class="tile">
+      <span class="lbl"><span class="zh">GSM8K：Halogen v2 关闭 answer guard 后</span><span class="en">GSM8K: Halogen v2 with the answer guard off</span></span>
+      <span class="big c-hfix">96.1%</span>
+      <span class="sub"><span class="zh">默认 87.7% · Gufo + UD 96.0%</span><span class="en">Default 87.7% · Gufo + UD 96.0%</span></span>
+    </div>
+    <div class="tile">
+      <span class="lbl"><span class="zh">加载最快</span><span class="en">Fastest load</span></span>
+      <span class="big c-gufo">23 s</span>
+      <span class="sub"><span class="zh">Gufo · Halogen v2 29 · Halogen UD 42 · Strata 62</span><span class="en">Gufo · Halogen v2 29 · Halogen UD 42 · Strata 62</span></span>
+    </div>
+  </div>
+  <section id="verdict">
+    <h3 class="sec"><span class="zh">结论</span><span class="en">Verdict</span></h3>
+    <p class="zh"><span class="flag">以下速度和内存的结论写于准确率评测之前，评测后仍然成立。</span>两套跑完的配置在四项准确率测试上全部持平：HumanEval、IFEval、MMLU-Pro 默认就持平，GSM8K 关掉 Halogen 默认开启的 answer guard 后为 96.1% 对 96.0%。用 Halogen 时，启动命令里要加 <code>-e HALOGEN_ANSWER_GUARD=0</code>（见“准确率与质量”）。</p>
+    <p class="en"><span class="flag">The speed and memory verdict below predates the accuracy evals and still holds.</span> The two complete setups tie on all four accuracy tasks: HumanEval, IFEval and MMLU-Pro on default settings, and GSM8K at 96.1% vs 96.0% once Halogen's default answer guard is off. When running Halogen, add <code>-e HALOGEN_ANSWER_GUARD=0</code> to the launch command (see Accuracy &amp; quality).</p>
+    <ul class="points">
+      <li><span class="zh"><b>日常用：Halogen v2，启动时加 <code>-e HALOGEN_ANSWER_GUARD=0</code>。</b>生成和读提示都最快，内存最省，还留 40 GiB 给其他软件。PPL 比 UD-Q4_K_XL 高约 2%，但四项准确率和 Gufo + UD 持平。</span><span class="en"><b>Day to day: Halogen v2, launched with <code>-e HALOGEN_ANSWER_GUARD=0</code>.</b> Fastest decode and prompts, least memory, 40 GiB left over. Perplexity is about 2% higher than UD-Q4_K_XL, yet accuracy ties Gufo + UD on all four tasks.</span></li>
+      <li><span class="zh"><b>想用 PPL 更低的 UD-Q4_K_XL：Gufo 或 Halogen。</b>两者速度接近，Gufo 生成稍快、加载更快；两者都要 92–95 GiB 内存。</span><span class="en"><b>For the lower-perplexity UD-Q4_K_XL: Gufo or Halogen.</b> They run at similar speed; Gufo decodes slightly faster and loads sooner. Both need 92–95 GiB.</span></li>
+      <li><span class="zh"><b>Strata 在这台机器上不划算。</b>同样的权重，它生成慢约 30%、读提示慢 3–4 倍，内存几乎占满，还卡死过一次。</span><span class="en"><b>Strata doesn't pay off on this machine.</b> On the same weights it decodes about 30% slower, reads prompts 3–4× slower, nearly fills memory, and stalled once.</span></li>
+    </ul>
+    <p class="note zh">没测：回答质量的人工评测；并发多请求；调小 Strata 的内存预算。</p>
+    <p class="note en">Not tested: human-judged answer quality, concurrent requests, a smaller Strata memory budget.</p>
+  </section>
+  <section id="setup">
+    <h3 class="sec"><span class="zh">四套配置</span><span class="en">The four setups</span></h3>
+    <p class="zh">两个变量分开看：同一份 UD-Q4_K_XL 权重上比三个引擎；同一个 Halogen 引擎上比两套权重。</p>
+    <p class="en">Two variables, separated: three engines on the same UD-Q4_K_XL weights, and two weight sets on the same Halogen engine.</p>
+    <div class="wrap">
+      <table>
+        <thead><tr>
+          <th><span class="zh">项目</span><span class="en">Item</span></th>
+          <th><i class="sw k-hv2"></i>Halogen v2</th>
+          <th><i class="sw k-hud"></i>Halogen + UD</th>
+          <th><i class="sw k-gufo"></i>Gufo + UD</th>
+          <th><i class="sw k-strata"></i>Strata + UD</th>
+        </tr></thead>
+        <tbody>
+          <tr><td><span class="zh">引擎版本</span><span class="en">Engine</span></td><td>0.18.18</td><td>0.18.18</td><td>0.27.0</td><td><span class="zh">0.2.7（实验性 395 引擎）</span><span class="en">0.2.7 (experimental 395 engine)</span></td></tr>
+          <tr><td><span class="zh">权重</span><span class="en">Weights</span></td><td><span class="zh">Halogen v2，约 4.16 bit</span><span class="en">Halogen v2, ~4.16 bpw</span></td><td colspan="3"><span class="zh">Unsloth UD-Q4_K_XL GGUF（同一份文件，111.3 GB）</span><span class="en">Unsloth UD-Q4_K_XL GGUF (the same file, 111.3 GB)</span></td></tr>
+          <tr><td><span class="zh">MTP 草稿层</span><span class="en">MTP draft head</span></td><td><span class="zh">权重内置</span><span class="en">built in</span></td><td><span class="zh">Halogen 自己的头文件</span><span class="en">Halogen's own head file</span></td><td>shared-Q8_0 GGUF</td><td><span class="zh">Strata 转换的版本</span><span class="en">Strata's converted head</span></td></tr>
+          <tr><td><span class="zh">上下文 / 对话缓存</span><span class="en">Context / KV cache</span></td><td>262,144 / int8</td><td>262,144 / int8</td><td><span class="zh">262,144 / 默认</span><span class="en">262,144 / default</span></td><td>262,144 / int8</td></tr>
+          <tr><td><span class="zh">其他设置</span><span class="en">Other settings</span></td><td><span class="zh">之前测过的压缩设置</span><span class="en">Compressed settings from earlier</span></td><td><span class="zh">同左</span><span class="en">Same</span></td><td><span class="zh">1 个会话，其余默认</span><span class="en">1 session, otherwise defaults</span></td><td><span class="zh">安装程序默认值</span><span class="en">Installer defaults</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note zh">四套配置轮流单独运行，内存放不下两个。切换前都确认显卡内存已释放（≤ 0.3 GiB）。</p>
+    <p class="note en">The setups ran one at a time; memory cannot hold two. GPU memory was confirmed released (≤ 0.3 GiB) before each switch.</p>
+  </section>
+  </div>
 
-  <h2 data-l="h_results"></h2>
-  <p data-l="results_intro"></p>
-  <div class="legend" id="legend"></div>
-  <div class="chart-wrap panels" id="chart"></div>
-  <p class="note" data-l="chart_note"></p>
+  <div class="module" id="m-quality">
+    <div class="mhead">
+      <h2><span class="zh">准确率与质量</span><span class="en">Accuracy &amp; quality</span></h2>
+      <p class="zh">Halogen v2 和 Gufo + UD 在四项任务上的准确率、GSM8K 差距的原因，以及权重本身的困惑度。</p>
+      <p class="en">Accuracy of Halogen v2 and Gufo + UD on four tasks, the cause of the GSM8K gap, and the perplexity of the weights.</p>
+    </div>
+  <section id="accuracy">
+<h3 class="sec"><span class="zh">准确率评测</span><span class="en">Accuracy evals</span></h3>
+<!--ACC-START-->
+    <p class="zh">Halogen v2 和 Gufo + UD 在四项任务上全部持平。HumanEval、IFEval、MMLU-Pro 在默认设置下差距就在误差范围内。GSM8K 默认差约 8 个百分点（87.7% 对 96.0%），原因是 Halogen 的一个默认设置，不是模型算错了题；关掉这个设置后为 96.1% 对 96.0%。</p>
+    <p class="en">Halogen v2 and Gufo + UD tie on all four tasks. HumanEval, IFEval and MMLU-Pro are within the error bars on default settings. GSM8K differs by about 8 points by default (87.7% vs 96.0%), caused by a Halogen default setting rather than the model getting the maths wrong; with that setting off it is 96.1% vs 96.0%.</p>
+    <figure class="fig"><div class="key"><span><i class="k-hv2"></i>Halogen v2</span><span><i class="k-gufo"></i>Gufo + UD</span></div><div class="chart" id="f-acc"></div><figcaption><b><span class="zh">图 1.</span><span class="en">Fig. 1.</span></b> <span class="zh">两套配置在四项任务上的准确率，均为默认设置。误差线为 95% 二项置信区间。</span><span class="en">Accuracy of the two setups on four tasks, both on default settings. Whiskers are 95% binomial intervals.</span></figcaption></figure>
+    <h4><span class="zh">GSM8K 为什么低</span><span class="en">Why GSM8K is lower</span></h4>
+    <p class="zh">Halogen 默认开启 answer guard：回答的最后一行如果是 Markdown 标题（以 <code>#</code> 开头），它不让回答结束。GSM8K 的提示要求最后一行写成 <code>#### 数字</code>，正好被当成标题。模型想停却停不下，只能接着重复 <code>#### 18</code>、补一段 JSON，或在数字后面不停补 0，直到 1,024 token 上限。评分取最后一个 <code>####</code>，被截断的回答常被判错，比如答对的 540 被截成 <code>#### 54</code>。只关掉这个设置重跑 GSM8K，Halogen v2 从 87.7% 升到 96.1%，触及上限的题从 444 道降到 21 道；和 Gufo + UD 的 96.0% 差距在误差范围内（逐题对比：只有 Halogen 答对 16 题，只有 Gufo 答对 15 题）。已报告给 Halogen：<a href="https://github.com/peonist-ai/halogen-flash-server/issues/259">halogen-flash-server#259</a>。</p>
+    <p class="en">Halogen turns on an answer guard by default: if the last line of a reply is a Markdown heading (starting with <code>#</code>), it won't let the reply end. The GSM8K prompt asks for a final line of <code>#### number</code>, which reads as a heading. The model tries to stop and can't, so it repeats <code>#### 18</code>, appends a JSON block, or keeps adding zeros to the number until the 1,024-token limit. Scoring takes the last <code>####</code>, so truncated replies often score wrong; a correct 540 cut to <code>#### 54</code>, for example. Rerunning GSM8K with only that setting off lifts Halogen v2 from 87.7% to 96.1%, and answers hitting the limit drop from 444 to 21; the remaining gap to Gufo + UD (96.0%) is within the error bars (question by question, 16 right only on Halogen, 15 right only on Gufo). Reported upstream as <a href="https://github.com/peonist-ai/halogen-flash-server/issues/259">halogen-flash-server#259</a>.</p>
+    <figure class="fig"><div class="key"><span><i class="k-hv2"></i><span class="zh">Halogen v2（默认）</span><span class="en">Halogen v2 (default)</span></span><span><i class="k-hfix"></i><span class="zh">Halogen v2（关闭 answer guard）</span><span class="en">Halogen v2 (answer guard off)</span></span><span><i class="k-gufo"></i>Gufo + UD</span></div><div class="chart" id="f-gsm"></div><figcaption><b><span class="zh">图 2.</span><span class="en">Fig. 2.</span></b> <span class="zh">三种运行在 GSM8K 上的准确率，以及回答触及 1,024 token 上限的比例。中间一组只在启动命令里多加了 <code>-e HALOGEN_ANSWER_GUARD=0</code>，引擎、权重、题目和请求都相同。</span><span class="en">GSM8K accuracy for three runs, and the share of replies that hit the 1,024-token limit. The middle run only adds <code>-e HALOGEN_ANSWER_GUARD=0</code> to the launch command; engine, weights, questions and requests are the same.</span></figcaption></figure>
+    <ul class="points">
+      <li><span class="zh"><b>只改了在哪里停：</b>同一道题，关掉 answer guard 后的回答和默认设置下回答的开头一字不差（1,319 题里 1,316 题），只是在答案行就停住了。和默认相比多答对 111 题，只少答对 1 题。</span><span class="en"><b>Only where it stops changes:</b> on the same question, the guard-off reply matches the start of the default reply word for word (1,316 of 1,319), it just stops on the answer line. Against the default run it gets 111 more right and 1 fewer.</span></li>
+      <li><span class="zh"><b>最小复现：</b>让 Halogen 只输出 <code># Title</code>、<code>### 18</code> 或 <code>#### 18</code>，它都会一直重复到上限；<code>18</code>、<code>The answer is 18.</code>、<code>**18**</code> 都能正常结束。只关掉 answer guard 后，六条全部正常结束。</span><span class="en"><b>Minimal repro:</b> asked to output only <code># Title</code>, <code>### 18</code> or <code>#### 18</code>, Halogen repeats it to the limit; <code>18</code>, <code>The answer is 18.</code> and <code>**18**</code> end normally. With only the answer guard off, all six end normally.</span></li>
+      <li><span class="zh"><b>逐项排除：</b>在原来循环的 24 道题上，关掉 MTP 草稿、关掉提示查找草稿，结果和默认完全一样（24 题全部截断）；只关 answer guard，24 题全部停在答案行。另一个开关 end-of-turn guard 保持开启也不影响。</span><span class="en"><b>One change at a time:</b> on 24 questions that looped, turning off MTP drafting or prompt-lookup drafting changed nothing (all 24 still truncated); turning off only the answer guard made all 24 stop on the answer line. The separate end-of-turn guard can stay on.</span></li>
+      <li><span class="zh"><b>不是权重的问题：</b>Gufo 的 1,294 个正常结束的回答全部停在 <code>####</code> 行，Halogen v2 一个都没有。Halogen 跑和 Gufo 同一份 UD-Q4_K_XL 权重（Halogen + UD）时也一样，GSM8K 只有 84.1%。</span><span class="en"><b>Not the weights:</b> all 1,294 of Gufo's normally ended replies stop on the <code>####</code> line; none of Halogen v2's do. Halogen on the same UD-Q4_K_XL weights as Gufo (Halogen + UD) behaves the same and scores 84.1% on GSM8K.</span></li>
+      <li><span class="zh"><b>其他三项不受影响：</b>它们的回答很少以标题行结尾，两套配置的截断回答里没有一例是标题行循环。</span><span class="en"><b>The other three tasks are unaffected:</b> their replies rarely end on a heading, and none of the truncated replies on either setup is a heading loop.</span></li>
+      <li><span class="zh"><b>在评测端也能部分补救：</b>遇到第一行答案就截断，Halogen v2 能回到 91.3%。但有 57 道题是在数字后面一直补 0（如 <code>70000000…</code>），评测端不知道该在哪一位截断，救不回来。在服务端关掉 answer guard 才能完全解决。</span><span class="en"><b>The eval side can recover part of it:</b> cutting each reply at its first answer line brings Halogen v2 back to 91.3%. But 57 replies keep adding zeros to the number (such as <code>70000000…</code>), and the eval side can't tell where to cut them. Only turning the answer guard off on the server fixes it fully.</span></li>
+      <li><span class="zh"><b>MMLU-Pro：</b>两套都有约 14% 的题没提取到答案（Halogen v2 139 题，Gufo + UD 141 题），这压低了两边的分数。</span><span class="en"><b>MMLU-Pro:</b> about 14% of questions yielded no extractable answer on both setups (Halogen v2 139, Gufo + UD 141), which lowers both scores.</span></li>
+    </ul>
+    <details class="data"><summary><span class="zh">查看数据表</span><span class="en">Show data table</span></summary><div class="wrap"><table><thead><tr><th><span class="zh">任务（题数）</span><span class="en">Task (questions)</span></th><th>Halogen v2</th><th><span class="zh">Halogen v2，关闭 answer guard</span><span class="en">Halogen v2, answer guard off</span></th><th>Gufo + UD</th></tr></thead><tbody><tr><td><span class="zh">HumanEval</span><span class="en">HumanEval</span> (164)</td><td class="n">96.3 ± 2.9</td><td class="n">—</td><td class="n">97.0 ± 2.6</td></tr><tr><td><span class="zh">IFEval 严格</span><span class="en">IFEval strict</span> (541)</td><td class="n">82.8 ± 3.2</td><td class="n">—</td><td class="n">83.2 ± 3.2</td></tr><tr><td><span class="zh">GSM8K</span><span class="en">GSM8K</span> (1,319)</td><td class="n">87.7 ± 1.8</td><td class="n">96.1 ± 1.1</td><td class="n">96.0 ± 1.1</td></tr><tr><td><span class="zh">MMLU-Pro</span><span class="en">MMLU-Pro</span> (1,000)</td><td class="n">77.4 ± 2.6</td><td class="n">—</td><td class="n">77.2 ± 2.6</td></tr></tbody></table></div><div class="wrap"><table><thead><tr><th><span class="zh">触及 token 上限（上限）</span><span class="en">Hit the token limit (limit)</span></th><th>Halogen v2</th><th><span class="zh">Halogen v2，关闭 answer guard</span><span class="en">Halogen v2, answer guard off</span></th><th>Gufo + UD</th></tr></thead><tbody><tr><td><span class="zh">HumanEval</span><span class="en">HumanEval</span> (1,024)</td><td class="n">1</td><td class="n">—</td><td class="n">2</td></tr><tr><td><span class="zh">IFEval 严格</span><span class="en">IFEval strict</span> (1,280)</td><td class="n">23</td><td class="n">—</td><td class="n">16</td></tr><tr><td><span class="zh">GSM8K</span><span class="en">GSM8K</span> (1,024)</td><td class="n">444</td><td class="n">21</td><td class="n">25</td></tr><tr><td><span class="zh">MMLU-Pro</span><span class="en">MMLU-Pro</span> (2,048)</td><td class="n">142</td><td class="n">—</td><td class="n">144</td></tr></tbody></table></div></details>
+    <p class="note zh">另外两套不在图中。Halogen + UD 四项为 97.0 / 84.8 / 84.1 / 76.1（HumanEval / IFEval / GSM8K / MMLU-Pro），同样受 answer guard 影响。Strata + UD 已按要求停止，只跑完 HumanEval（97.6%，164 题）和 73 道 IFEval。这组运行的设置和速度测试不同，详见“测试方法”。</p>
+    <p class="note en">The other two setups are left out of the figures. Halogen + UD scored 97.0 / 84.8 / 84.1 / 76.1 (HumanEval / IFEval / GSM8K / MMLU-Pro) and is hit by the same answer guard. Strata + UD was stopped on request after HumanEval (97.6%, 164 questions) and 73 IFEval questions. These runs use different settings from the speed tests; see Method.</p>
 
-  <h3 data-l="h_table"></h3>
-  <div class="table-scroll"><table id="main-table"></table></div>
+    <h4><span class="zh">全部五组运行的细分数据</span><span class="en">Breakdowns for all five runs</span></h4>
+    <p class="zh">上面的图只画了跑完的两套配置。下面是全部运行的准确率（± 为 95% 区间）、触及 token 上限的题数、IFEval 四个指标，以及 MMLU-Pro 各学科的准确率。原始汇总数据：<a href="data/summary.json">summary.json</a>。</p>
+    <p class="en">The figures above show only the two complete setups. Below: accuracy for every run (± is the 95% interval), replies that hit the token limit, all four IFEval metrics, and MMLU-Pro accuracy by subject. Raw summary data: <a href="data/summary.json">summary.json</a>.</p>
+    <details class="data"><summary><span class="zh">准确率与截断（全部运行）</span><span class="en">Accuracy and truncation (all runs)</span></summary><div class="wrap"><table><thead><tr><th><span class="zh">任务（题数）</span><span class="en">Task (questions)</span></th><th><i class="sw k-hv2"></i>Halogen v2</th><th><i class="sw k-hfix"></i><span class="zh">Halogen v2，关闭 answer guard</span><span class="en">Halogen v2, answer guard off</span></th><th><i class="sw k-hud"></i>Halogen + UD</th><th><i class="sw k-gufo"></i>Gufo + UD</th><th><i class="sw k-strata"></i>Strata + UD</th></tr></thead><tbody><tr><td><span class="zh">HumanEval</span><span class="en">HumanEval</span> (164)</td><td class="n">96.3 ± 2.9</td><td class="n">—</td><td class="n">97.0 ± 2.6</td><td class="n">97.0 ± 2.6</td><td class="n">97.6 ± 2.4</td></tr><tr><td><span class="zh">IFEval 严格</span><span class="en">IFEval strict</span> (541)</td><td class="n">82.8 ± 3.2</td><td class="n">—</td><td class="n">84.8 ± 3.0</td><td class="n">83.2 ± 3.2</td><td class="n">93.2 ± 5.8 <span class="zh">（73 题）</span><span class="en">(n=73)</span></td></tr><tr><td><span class="zh">GSM8K</span><span class="en">GSM8K</span> (1,319)</td><td class="n">87.7 ± 1.8</td><td class="n">96.1 ± 1.1</td><td class="n">84.1 ± 2.0</td><td class="n">96.0 ± 1.1</td><td class="n">—</td></tr><tr><td><span class="zh">MMLU-Pro</span><span class="en">MMLU-Pro</span> (1,000)</td><td class="n">77.4 ± 2.6</td><td class="n">—</td><td class="n">76.1 ± 2.6</td><td class="n">77.2 ± 2.6</td><td class="n">—</td></tr></tbody></table></div><div class="wrap"><table><thead><tr><th><span class="zh">触及 token 上限</span><span class="en">Hit the token limit</span></th><th><i class="sw k-hv2"></i>Halogen v2</th><th><i class="sw k-hfix"></i><span class="zh">Halogen v2，关闭 answer guard</span><span class="en">Halogen v2, answer guard off</span></th><th><i class="sw k-hud"></i>Halogen + UD</th><th><i class="sw k-gufo"></i>Gufo + UD</th><th><i class="sw k-strata"></i>Strata + UD</th></tr></thead><tbody><tr><td><span class="zh">HumanEval</span><span class="en">HumanEval</span></td><td class="n">1 / 164</td><td class="n">—</td><td class="n">2 / 164</td><td class="n">2 / 164</td><td class="n">1 / 164</td></tr><tr><td><span class="zh">IFEval 严格</span><span class="en">IFEval strict</span></td><td class="n">23 / 541</td><td class="n">—</td><td class="n">21 / 541</td><td class="n">16 / 541</td><td class="n">2 / 73</td></tr><tr><td><span class="zh">GSM8K</span><span class="en">GSM8K</span></td><td class="n">444 / 1,319</td><td class="n">21 / 1,319</td><td class="n">661 / 1,319</td><td class="n">25 / 1,319</td><td class="n">—</td></tr><tr><td><span class="zh">MMLU-Pro</span><span class="en">MMLU-Pro</span></td><td class="n">142 / 1,000</td><td class="n">—</td><td class="n">155 / 1,000</td><td class="n">144 / 1,000</td><td class="n">—</td></tr></tbody></table></div></details>
+    <details class="data"><summary><span class="zh">IFEval 四个指标</span><span class="en">IFEval, all four metrics</span></summary><div class="wrap"><table><thead><tr><th>IFEval</th><th><i class="sw k-hv2"></i>Halogen v2</th><th><i class="sw k-hud"></i>Halogen + UD</th><th><i class="sw k-gufo"></i>Gufo + UD</th><th><i class="sw k-strata"></i>Strata + UD <span class="zh">（仅 73 题）</span><span class="en">(73 only)</span></th></tr></thead><tbody><tr><td><span class="zh">Prompt 严格（主指标）</span><span class="en">Prompt strict (headline)</span></td><td class="n">82.8</td><td class="n">84.8</td><td class="n">83.2</td><td class="n">93.2</td></tr><tr><td><span class="zh">Prompt 宽松</span><span class="en">Prompt loose</span></td><td class="n">87.2</td><td class="n">90.0</td><td class="n">87.6</td><td class="n">95.9</td></tr><tr><td><span class="zh">指令级严格</span><span class="en">Instruction strict</span></td><td class="n">88.5</td><td class="n">89.7</td><td class="n">88.7</td><td class="n">95.7</td></tr><tr><td><span class="zh">指令级宽松</span><span class="en">Instruction loose</span></td><td class="n">91.7</td><td class="n">93.3</td><td class="n">91.8</td><td class="n">97.4</td></tr></tbody></table></div></details>
+    <details class="data"><summary><span class="zh">MMLU-Pro 各学科准确率</span><span class="en">MMLU-Pro accuracy by subject</span></summary><div class="wrap"><table><thead><tr><th><span class="zh">学科</span><span class="en">Subject</span></th><th><i class="sw k-hv2"></i>Halogen v2</th><th><i class="sw k-hud"></i>Halogen + UD</th><th><i class="sw k-gufo"></i>Gufo + UD</th></tr></thead><tbody><tr><td><span class="zh">生物</span><span class="en">Biology</span></td><td class="n best">90.0</td><td class="n best">90.0</td><td class="n">86.7</td></tr><tr><td><span class="zh">商科</span><span class="en">Business</span></td><td class="n">81.8</td><td class="n">80.3</td><td class="n best">86.4</td></tr><tr><td><span class="zh">化学</span><span class="en">Chemistry</span></td><td class="n">79.8</td><td class="n">78.7</td><td class="n best">80.9</td></tr><tr><td><span class="zh">计算机</span><span class="en">Computer science</span></td><td class="n">73.5</td><td class="n">67.6</td><td class="n best">82.4</td></tr><tr><td><span class="zh">经济</span><span class="en">Economics</span></td><td class="n best">82.9</td><td class="n">80.0</td><td class="n">81.4</td></tr><tr><td><span class="zh">工程</span><span class="en">Engineering</span></td><td class="n best">43.2</td><td class="n">38.3</td><td class="n">38.3</td></tr><tr><td><span class="zh">健康</span><span class="en">Health</span></td><td class="n best">83.8</td><td class="n">82.4</td><td class="n">82.4</td></tr><tr><td><span class="zh">历史</span><span class="en">History</span></td><td class="n">81.2</td><td class="n">78.1</td><td class="n best">84.4</td></tr><tr><td><span class="zh">法律</span><span class="en">Law</span></td><td class="n best">69.2</td><td class="n">63.7</td><td class="n">63.7</td></tr><tr><td><span class="zh">数学</span><span class="en">Math</span></td><td class="n best">84.8</td><td class="n best">84.8</td><td class="n">83.9</td></tr><tr><td><span class="zh">其他</span><span class="en">Other</span></td><td class="n">72.7</td><td class="n">74.0</td><td class="n best">75.3</td></tr><tr><td><span class="zh">哲学</span><span class="en">Philosophy</span></td><td class="n">82.9</td><td class="n best">85.4</td><td class="n best">85.4</td></tr><tr><td><span class="zh">物理</span><span class="en">Physics</span></td><td class="n best">79.6</td><td class="n best">79.6</td><td class="n">77.8</td></tr><tr><td><span class="zh">心理学</span><span class="en">Psychology</span></td><td class="n">84.8</td><td class="n">87.9</td><td class="n best">89.4</td></tr><tr class="avg"><td><span class="zh">总计</span><span class="en">Overall</span></td><td class="n">77.4</td><td class="n">76.1</td><td class="n">77.2</td></tr></tbody></table></div></details>
+<!--ACC-END-->
+  </section>
+  <section id="ppl">
+<h3 class="sec"><span class="zh">质量：WikiText-2 困惑度（PPL）</span><span class="en">Quality: WikiText-2 perplexity</span></h3><p class="zh">UD-Q4_K_XL 权重的 PPL 比 Halogen v2 低约 2%，差距小但在统计上非常显著。Gufo 和 Strata 用的都是这份 UD-Q4_K_XL 权重。</p><p class="en">The UD-Q4_K_XL weights score about 2% lower perplexity than Halogen v2; a small gap, but statistically very clear. Gufo and Strata both run these UD-Q4_K_XL weights.</p><figure class="fig"><div class="chart" id="f-ppl"></div><figcaption><b><span class="zh">图 3.</span><span class="en">Fig. 3.</span></b> <span class="zh">两套权重在 WikiText-2 上的逐 token 配对差（UD-Q4_K_XL − v2）。点为均值，线段为 95% 置信区间，负值表示 UD-Q4_K_XL 更好。</span><span class="en">Per-token paired difference on WikiText-2 (UD-Q4_K_XL − v2). Points are means, lines are 95% CIs; negative favours UD-Q4_K_XL.</span></figcaption></figure><ul class="points">
+      <li><span class="zh">UD-Q4_K_XL 在难预测的 token 上更好（最难的四分之一 −0.12 nats），在容易的 token 上反而略差。</span><span class="en">UD-Q4_K_XL is better on hard tokens (−0.12 nats on the hardest quarter) and slightly worse on easy ones.</span></li>
+      <li><span class="zh">两套权重都由 Halogen 的 <code>ppl</code> 工具计算：同一份语料、同一个分词器、同样的算法，差别只来自权重。Strata 没有 PPL 工具，也不返回提示词的逐 token 概率；Gufo 的 NLL 工具不在发布的容器里。所以没有单独测两家引擎自身的数值误差。</span><span class="en">Both weight sets were scored by Halogen's <code>ppl</code> tool: same corpus, tokenizer and arithmetic, so the difference is the weights alone. Strata has no perplexity tool and returns no prompt-token probabilities; Gufo's NLL tool is not in its released container. Engine-specific numeric error was therefore not measured separately.</span></li>
+      <li><span class="zh">参照：Halogen 文档里 UD-Q4_K_XL 比它旧版 w4b 权重低 0.033 nats，这次比 v2 低 0.020 nats，方向一致。</span><span class="en">For reference, Halogen's docs put UD-Q4_K_XL 0.033 nats below its older w4b weights; here it is 0.020 nats below v2, the same direction.</span></li>
+    </ul><details class="data"><summary><span class="zh">查看数据表</span><span class="en">Show data table</span></summary><div class="wrap">
+      <table>
+        <thead><tr>
+          <th><span class="zh">上下文</span><span class="en">Context</span></th>
+          <th><span class="zh">v2 权重</span><span class="en">v2 weights</span></th>
+          <th><span class="zh">UD-Q4_K_XL 权重</span><span class="en">UD-Q4_K_XL weights</span></th>
+          <th><span class="zh">配对差（nats/token）</span><span class="en">Paired difference (nats/token)</span></th>
+          <th><span class="zh">95% 置信区间</span><span class="en">95% CI</span></th>
+          <th>t</th>
+          <th><span class="zh">UD 更好的 token</span><span class="en">Tokens where UD is better</span></th>
+        </tr></thead>
+        <tbody>
+          <tr><td><span class="zh">4,096 token 一段</span><span class="en">4,096-token sequences</span></td><td class="n">4.2717</td><td class="n best">4.1828</td><td class="n">−0.0210</td><td class="n">−0.0229 … −0.0192</td><td class="n">−22.7</td><td class="n">55.7%</td></tr>
+          <tr><td><span class="zh">整个测试集一条长序列</span><span class="en">Whole set as one sequence</span></td><td class="n">3.7791</td><td class="n best">3.7048</td><td class="n">−0.0199</td><td class="n">−0.0215 … −0.0183</td><td class="n">−24.2</td><td class="n">56.6%</td></tr>
+        </tbody>
+      </table>
+    </div></details>
+  </section>
+  </div>
 
-  <h2 data-l="h_gsm8k"></h2>
-  <div data-l="gsm8k_body"></div>
-  <div class="table-scroll"><table id="gsm-table"></table></div>
-  <pre id="gsm-example"></pre>
+  <div class="module" id="m-speed">
+    <div class="mhead">
+      <h2><span class="zh">速度</span><span class="en">Speed</span></h2>
+      <p class="zh">引擎和权重各自的影响，以及生成和读提示的速度。</p>
+      <p class="en">The effect of engine and weights, then decode and prompt speed.</p>
+    </div>
+  <section id="split">
+    <h3 class="sec"><span class="zh">引擎和权重各占多少</span><span class="en">How much is engine, how much is weights</span></h3>
+    <ul class="points">
+      <li><span class="zh"><b>同一份权重，换引擎：</b>Gufo 和 Halogen 生成速度接近（49.0 和 47.6 tok/s），读提示也接近（约 1,400–1,530 tok/s），都是 Strata 的约 1.4 倍和 3–4 倍。Strata 慢在把专家放在显卡缓存外、边跑边从 SSD 读。</span><span class="en"><b>Same weights, different engine:</b> Gufo and Halogen decode at similar speed (49.0 and 47.6 tok/s) and read prompts at similar speed (about 1,400–1,530 tok/s), about 1.4× and 3–4× Strata. Strata loses time keeping experts outside the GPU cache and reading them from the SSD.</span></li>
+      <li><span class="zh"><b>同一个引擎，换权重：</b>Halogen 从 UD-Q4_K_XL 换到自家 v2，生成快 1.4 倍（47.6 → 66.7），读提示快约 1.2 倍，内存少 21 GiB。代价是 PPL 高约 2%。</span><span class="en"><b>Same engine, different weights:</b> moving Halogen from UD-Q4_K_XL to its own v2 makes decode 1.4× faster (47.6 → 66.7), prompts about 1.2× faster, and saves 21 GiB. The cost is about 2% higher perplexity.</span></li>
+    </ul>
+  </section>
+  <section id="decode">
+<h3 class="sec"><span class="zh">生成速度（decode）</span><span class="en">Decode speed</span></h3><div class="figs"><figure class="fig"><div class="key"><span><i class="k-hv2"></i>Halogen v2</span><span><i class="k-hud"></i>Halogen + UD</span><span><i class="k-gufo"></i>Gufo + UD</span><span><i class="k-strata"></i>Strata + UD</span></div><div class="chart" id="c-decode"></div><figcaption><b><span class="zh">图 4.</span><span class="en">Fig. 4.</span></b> <span class="zh">短提示生成 256 token 的速度。贪心解码，关闭思考，开 MTP 草稿。</span><span class="en">Decode speed for 256 tokens after short prompts. Greedy, thinking off, MTP drafting on.</span></figcaption></figure><figure class="fig"><div class="key"><span><i class="k-hv2"></i>Halogen v2</span><span><i class="k-hud"></i>Halogen + UD</span><span><i class="k-gufo"></i>Gufo + UD</span><span><i class="k-strata"></i>Strata + UD</span></div><div class="chart" id="c-decode-ctx"></div><figcaption><b><span class="zh">图 5.</span><span class="en">Fig. 5.</span></b> <span class="zh">读完长提示后的生成速度。每次只生成 60–85 token，数值仅供参考。</span><span class="en">Decode speed after long prompts. Only 60–85 tokens per request, so treat these as indicative.</span></figcaption></figure><figure class="fig"><div class="key"><span><i class="k-hv2"></i>Halogen v2</span><span><i class="k-hud"></i>Halogen + UD</span><span><i class="k-gufo"></i>Gufo + UD</span><span><i class="k-strata"></i>Strata + UD</span></div><div class="chart" id="f-std-decode"></div><figcaption><b><span class="zh">图 6.</span><span class="en">Fig. 6.</span></b> <span class="zh">Strata 标准测试（standard-v1）的生成速度，原样重放给其他三套。开思考、温度 1.0、上限 512 token，3 次取中位数。</span><span class="en">Decode in Strata's standard-v1 benchmark, replayed to the other three. Thinking on, temperature 1.0, 512-token cap, median of 3.</span></figcaption></figure><figure class="fig"><div class="key"><span><i class="k-hv2"></i>Halogen v2</span><span><i class="k-hud"></i>Halogen + UD</span><span><i class="k-gufo"></i>Gufo + UD</span><span><i class="k-strata"></i>Strata + UD</span></div><div class="chart" id="f-std-prompt"></div><figcaption><b><span class="zh">图 7.</span><span class="en">Fig. 7.</span></b> <span class="zh">同一标准测试的读提示速度。各家思考长度不同，所以只比速度、不比总耗时。</span><span class="en">Prompt speed in the same benchmark. Thinking length differs per setup, so compare speeds, not total time.</span></figcaption></figure></div><p class="note zh">图 4–8 没有误差线：这里只记录了每项的单个结果或中位数，没有离散度数据。</p><p class="note en">Figs. 4–8 have no error bars: only one result or median was recorded per item, with no spread data.</p><details class="data"><summary><span class="zh">查看数据表</span><span class="en">Show data table</span></summary><p class="note zh">每格：tok/s · 草稿接受率。接受率四家差不多，速度差在每一步本身的开销。</p><p class="note en">Each cell: tok/s · draft acceptance. Acceptance is similar across setups; the speed gap is the cost of each step.</p><div class="wrap">
+        <table>
+          <thead><tr>
+            <th><span class="zh">提示</span><span class="en">Prompt</span></th>
+            <th>Halogen v2</th><th>Halogen + UD</th><th>Gufo + UD</th><th>Strata + UD</th>
+          </tr></thead>
+          <tbody>
+            <tr><td><span class="zh">灯塔故事</span><span class="en">Lighthouse story</span></td><td class="n best">53.7 · 56%</td><td class="n">36.3 · 55%</td><td class="n">33.9 · 50%</td><td class="n">29.9 · 54%</td></tr>
+            <tr><td><span class="zh">冰箱原理</span><span class="en">How a fridge works</span></td><td class="n best">54.6 · 62%</td><td class="n">39.4 · 62%</td><td class="n">41.9 · 59%</td><td class="n">32.9 · 62%</td></tr>
+            <tr><td><span class="zh">写 Python 函数</span><span class="en">Write a Python function</span></td><td class="n best">91.8 · 87%</td><td class="n">67.1 · 86%</td><td class="n">71.1 · 78%</td><td class="n">39.1 · 90%</td></tr>
+            <tr class="avg"><td><span class="zh">平均 tok/s</span><span class="en">Average tok/s</span></td><td class="n best">66.7</td><td class="n">47.6</td><td class="n">49.0</td><td class="n">34.0</td></tr>
+          </tbody>
+        </table>
+      </div><div class="wrap">
+        <table>
+          <thead><tr>
+            <th><span class="zh">场景</span><span class="en">Case</span></th>
+            <th>Halogen v2</th><th>Halogen + UD</th><th>Gufo + UD</th><th>Strata + UD</th>
+          </tr></thead>
+          <tbody>
+            <tr><td><span class="zh">短提示 · 生成</span><span class="en">Short · decode</span></td><td class="n best">56.5</td><td class="n">40.9</td><td class="n">49.8</td><td class="n">34.8</td></tr>
+            <tr><td><span class="zh">4K 提示 · 生成</span><span class="en">4K · decode</span></td><td class="n best">62.2</td><td class="n">47.4</td><td class="n">52.0</td><td class="n">29.8</td></tr>
+            <tr><td><span class="zh">16K 提示 · 生成</span><span class="en">16K · decode</span></td><td class="n best">62.4</td><td class="n">41.7</td><td class="n">51.3</td><td class="n">30.2</td></tr>
+            <tr><td><span class="zh">4K 提示 · 读提示</span><span class="en">4K · prompt</span></td><td class="n best">1,730</td><td class="n">1,133</td><td class="n">1,480</td><td class="n">391</td></tr>
+            <tr><td><span class="zh">16K 提示 · 读提示</span><span class="en">16K · prompt</span></td><td class="n best">1,847</td><td class="n">1,467</td><td class="n">1,524</td><td class="n">476</td></tr>
+          </tbody>
+        </table>
+      </div></details>
+  </section>
+  <section id="prefill">
+<h3 class="sec"><span class="zh">读提示速度（prefill）</span><span class="en">Prompt speed (prefill)</span></h3><p class="zh">Halogen v2 最快，约 1,690–1,810 tok/s。Gufo 和 Halogen 在 UD 权重上都在 1,400–1,530 tok/s。Strata 只有 373–479 tok/s，131K 提示要将近 6 分钟。</p><p class="en">Halogen v2 is fastest at about 1,690–1,810 tok/s. Gufo and Halogen on the UD weights both land at 1,400–1,530 tok/s. Strata manages 373–479 tok/s; a 131K prompt takes it almost 6 minutes.</p><figure class="fig"><div class="key"><span><i class="k-hv2"></i>Halogen v2</span><span><i class="k-hud"></i>Halogen + UD</span><span><i class="k-gufo"></i>Gufo + UD</span><span><i class="k-strata"></i>Strata + UD</span></div><div class="chart" id="c-prefill"></div><figcaption><b><span class="zh">图 8.</span><span class="en">Fig. 8.</span></b> <span class="zh">不同提示长度下的读提示速度。每个提示都是新的（随机打乱的常用词），提示缓存帮不上忙。</span><span class="en">Prompt speed by prompt length. Every prompt is new (shuffled common words), so no prompt cache helps.</span></figcaption></figure>
+  </section>
+  <section id="own-bench">
+<h3 class="sec"><span class="zh">各引擎自带的测试工具</span><span class="en">Each engine's own benchmark</span></h3><p class="zh">各家工具的提示和测法不同，只适合同一工具内比较。</p><p class="en">Each tool uses its own prompts and method, so compare within a tool only.</p><details class="data"><summary><span class="zh">查看数据表</span><span class="en">Show data table</span></summary><div class="wrap">
+      <table>
+        <thead><tr>
+          <th><span class="zh">工具 · 测试项</span><span class="en">Tool · test</span></th>
+          <th>Halogen v2</th><th>Halogen + UD</th><th>Gufo + UD</th>
+          <th><span class="zh">官方公布</span><span class="en">Published</span></th>
+        </tr></thead>
+        <tbody>
+          <tr><td><span class="zh">Halogen bench · 生成（10 种提示 × 3，MTP）</span><span class="en">Halogen bench · decode (10 prompts × 3, MTP)</span></td><td class="n">66.67</td><td class="n">45.51</td><td class="n">—</td><td class="n"><span class="zh">66.58（v2）</span><span class="en">66.58 (v2)</span></td></tr>
+          <tr><td><span class="zh">Halogen bench · 不开草稿</span><span class="en">Halogen bench · no drafting</span></td><td class="n"><span class="zh">约 40</span><span class="en">~40</span></td><td class="n">24.4</td><td class="n">—</td><td class="n">—</td></tr>
+          <tr><td><span class="zh">Halogen sweep · 读提示 8K / 32K / 131K</span><span class="en">Halogen sweep · prompt 8K / 32K / 131K</span></td><td class="n">1,850 / 1,822 / 1,752</td><td class="n">1,401 / 1,522 / 1,480</td><td class="n">—</td><td class="n">1,876 / 1,821 / 1,675</td></tr>
+          <tr><td><span class="zh">gufo bench · 读提示 2K / 8K / 32K / 131K</span><span class="en">gufo bench · prompt 2K / 8K / 32K / 131K</span></td><td class="n">—</td><td class="n">—</td><td class="n">1,449 / 1,626 / 1,577 / 1,498</td><td class="n"><span class="zh">2K：1,735（MTP）</span><span class="en">2K: 1,735 (MTP)</span></td></tr>
+          <tr><td><span class="zh">gufo bench · tg128（MTP）</span><span class="en">gufo bench · tg128 (MTP)</span></td><td class="n">—</td><td class="n">—</td><td class="n">48.44</td><td class="n"><span class="zh">35.79（混合文本）</span><span class="en">35.79 (mixed text)</span></td></tr>
+          <tr><td><span class="zh">gufo bench · 不开草稿 pp2048 / tg128</span><span class="en">gufo bench · no drafting pp2048 / tg128</span></td><td class="n">—</td><td class="n">—</td><td class="n">1,515 / 29.40</td><td class="n">1,801 / 28.29</td></tr>
+        </tbody>
+      </table>
+    </div><p class="note zh">Gufo 不开草稿时的生成速度和官方一致；pp2048 比官方低约 16%。Halogen v2 的 131K 官方数据来自 0.18.0。Strata 自带工具的结果见上面的标准测试。</p><p class="note en">Gufo's no-drafting decode matches its published figure; its pp2048 is about 16% below. Halogen's published 131K figure is from 0.18.0. Strata's own tool is the standard benchmark above.</p></details>
+  </section>
+  </div>
 
-  <h2 data-l="h_trunc"></h2>
-  <p data-l="trunc_intro"></p>
-  <div class="table-scroll"><table id="trunc-table"></table></div>
-  <p class="note" data-l="trunc_note"></p>
+  <div class="module" id="m-resources">
+    <div class="mhead">
+      <h2><span class="zh">内存与稳定性</span><span class="en">Memory &amp; stability</span></h2>
+      <p class="zh">每套占多少内存、耗多少电、运行时是否出错。</p>
+      <p class="en">Memory use, power draw and failures for each setup.</p>
+    </div>
+  <section id="memory">
+<h3 class="sec"><span class="zh">内存</span><span class="en">Memory</span></h3>    <p class="zh">Halogen v2 最省，留给其他软件 40.1 GiB。Gufo 和 Halogen 在 UD 权重上都要 92–95 GiB。Strata 几乎用满 122 GiB 系统内存，还把 4.5 GiB 其他程序挤进了交换空间。</p>    <p class="en">Halogen v2 is leanest and leaves 40.1 GiB for other software. Gufo and Halogen on the UD weights both need 92–95 GiB. Strata fills nearly all 122 GiB of system memory and pushed 4.5 GiB of other programs into swap.</p><figure class="fig"><div class="chart" id="c-memory"></div><figcaption><b><span class="zh">图 9.</span><span class="en">Fig. 9.</span></b> <span class="zh">各配置的内存占用，虚线为 122 GiB 系统内存。Halogen 的 n-gram 查找表（v2 47.7 GiB，UD 26.8 GiB）放在硬盘，按需读入文件缓存，不计入合计。Strata 把它锁在内存里。Gufo 的合计是显卡 GTT 加进程常驻内存。</span><span class="en">Memory use by setup; the dashed line is the 122 GiB of system RAM. Halogen keeps the n-gram lookup table (47.7 GiB for v2, 26.8 GiB for UD) on disk and reads it into the page cache on demand; it is not in the totals. Strata locks it in RAM. Gufo's total is GPU GTT plus process resident memory.</span></figcaption></figure><details class="data"><summary><span class="zh">查看数据表</span><span class="en">Show data table</span></summary><div class="wrap">
+      <table>
+        <thead><tr>
+          <th><span class="zh">项目</span><span class="en">Item</span></th>
+          <th>Halogen v2</th><th>Halogen + UD</th><th>Gufo + UD</th><th>Strata + UD</th>
+        </tr></thead>
+        <tbody>
+          <tr><td><span class="zh">引擎合计</span><span class="en">Engine total</span></td><td class="n best">74.2 GiB</td><td class="n">95.0 GiB</td><td class="n">92.1 GiB</td><td class="n">~112 GiB</td></tr>
+          <tr><td><span class="zh">显卡内存（GTT）</span><span class="en">GPU memory (GTT)</span></td><td class="n">12.6 GiB</td><td class="n">15.6 GiB</td><td class="n">89.7 GiB</td><td class="n">36.1 GiB</td></tr>
+          <tr><td><span class="zh">留给其他软件</span><span class="en">Left for other software</span></td><td class="n best">40.1 GiB</td><td class="n">19.6 GiB</td><td class="n"><span class="zh">25.0 → 19.3 GiB</span><span class="en">25.0 → 19.3 GiB</span></td><td class="n"><span class="zh">约 6 → 1.1 GiB</span><span class="en">~6 → 1.1 GiB</span></td></tr>
+          <tr><td><span class="zh">新挤进交换空间</span><span class="en">Swap added</span></td><td class="n">0</td><td class="n">0</td><td class="n">0</td><td class="n">4.5 GiB</td></tr>
+          <tr><td><span class="zh">加载到可用</span><span class="en">Load to ready</span></td><td class="n">29 s</td><td class="n"><span class="zh">42 s（首次转换另加约 54 s）</span><span class="en">42 s (first conversion adds ~54 s)</span></td><td class="n best">23 s</td><td class="n">62 s</td></tr>
+        </tbody>
+      </table>
+    </div><p class="note zh">“A → B”是空闲时到测试结束时。Gufo 默认的提示缓存会随使用增长（最多空闲内存的一半、不超过 32 GiB）。Halogen 的“系统显示可用”偏高，因为锁定的权重被算成可释放缓存，这里按启动前可用内存减去引擎合计。</p><p class="note en">"A → B" is idle to end of testing. Gufo's default prompt cache grows with use (up to half of free RAM, at most 32 GiB). Halogen's MemAvailable is overstated because pinned weights count as reclaimable cache, so its figure is available memory before start minus the engine total.</p></details>
+  </section>
+  <section id="power">
+<h3 class="sec"><span class="zh">功耗、温度与稳定性</span><span class="en">Power, temperature and stability</span></h3><div class="figs3"><figure class="fig"><div class="key"><span><i class="k-hv2"></i>Halogen v2</span><span><i class="k-hud"></i>Halogen + UD</span><span><i class="k-gufo"></i>Gufo + UD</span><span><i class="k-strata"></i>Strata + UD</span></div><div class="chart" id="f-power"></div><figcaption><b><span class="zh">图 10.</span><span class="en">Fig. 10.</span></b> <span class="zh">负载中的平均和峰值功耗。</span><span class="en">Average and peak power under load.</span></figcaption></figure><figure class="fig"><div class="key"><span><i class="k-hv2"></i>Halogen v2</span><span><i class="k-hud"></i>Halogen + UD</span><span><i class="k-gufo"></i>Gufo + UD</span><span><i class="k-strata"></i>Strata + UD</span></div><div class="chart" id="f-temp"></div><figcaption><b><span class="zh">图 11.</span><span class="en">Fig. 11.</span></b> <span class="zh">最高 GPU 温度。</span><span class="en">Maximum GPU temperature.</span></figcaption></figure><figure class="fig"><div class="key"><span><i class="k-hv2"></i>Halogen v2</span><span><i class="k-hud"></i>Halogen + UD</span><span><i class="k-gufo"></i>Gufo + UD</span><span><i class="k-strata"></i>Strata + UD</span></div><div class="chart" id="f-load"></div><figcaption><b><span class="zh">图 12.</span><span class="en">Fig. 12.</span></b> <span class="zh">从启动到可用的时间。Halogen + UD 首次转换另加约 54 s。</span><span class="en">Load to ready. Halogen + UD adds about 54 s for its first conversion.</span></figcaption></figure></div><ul class="points">
+      <li><span class="zh">四套功耗几乎一样，所以每个 token 的耗电和速度成反比：Halogen v2 最省电，Strata 最费电。</span><span class="en">All four draw about the same power, so energy per token is the inverse of speed: Halogen v2 uses the least, Strata the most.</span></li>
+      <li><span class="zh"><span class="flag">Strata 卡死一次。</span>131K 提示第一次读到第 90,112 个 token 时显卡 60 秒没有进展，Strata 自动重启引擎，重试成功。当时系统可用内存只有约 2 GiB。</span><span class="en"><span class="flag">Strata stalled once.</span> On the first 131K attempt the GPU made no progress for 60 s at token 90,112; Strata restarted its engine and the retry succeeded. Free memory was about 2 GiB at the time.</span></li>
+    </ul><details class="data"><summary><span class="zh">查看数据表</span><span class="en">Show data table</span></summary><div class="wrap">
+      <table>
+        <thead><tr>
+          <th><span class="zh">项目</span><span class="en">Item</span></th>
+          <th>Halogen v2</th><th>Halogen + UD</th><th>Gufo + UD</th><th>Strata + UD</th>
+        </tr></thead>
+        <tbody>
+          <tr><td><span class="zh">平均功耗（负载中）</span><span class="en">Average power under load</span></td><td class="n">84 W</td><td class="n">84 W</td><td class="n">84 W</td><td class="n">82 W</td></tr>
+          <tr><td><span class="zh">峰值功耗</span><span class="en">Peak power</span></td><td class="n">98 W</td><td class="n">99 W</td><td class="n">98 W</td><td class="n">99 W</td></tr>
+          <tr><td><span class="zh">最高 GPU 温度</span><span class="en">Max GPU temperature</span></td><td class="n">82 °C</td><td class="n">85 °C</td><td class="n">85 °C</td><td class="n">84 °C</td></tr>
+          <tr><td><span class="zh">失败的请求</span><span class="en">Failed requests</span></td><td class="n">0</td><td class="n">0</td><td class="n">0</td><td class="n"><span class="zh">1（重试成功）</span><span class="en">1 (retry worked)</span></td></tr>
+        </tbody>
+      </table>
+    </div></details>
+  </section>
+  </div>
 
-  <h2 data-l="h_more"></h2>
-  <h3 data-l="h_ifeval"></h3>
-  <div class="table-scroll"><table id="ifeval-table"></table></div>
-  <h3 data-l="h_mmlu"></h3>
-  <div class="table-scroll"><table id="mmlu-table"></table></div>
+  <div class="module" id="m-method">
+    <div class="mhead">
+      <h2><span class="zh">测试方法</span><span class="en">Method</span></h2>
+      <p class="zh">两组测试的请求内容、设置和工具。</p>
+      <p class="en">Requests, settings and tools for both sets of tests.</p>
+    </div>
+  <section id="method-accuracy">
+    <h3 class="sec"><span class="zh">准确率评测</span><span class="en">Accuracy evals</span></h3>
+    <p class="zh">HumanEval、IFEval（lm_eval 官方评分）、GSM8K 和 MMLU-Pro（固定种子分层抽样），四套配置题目相同；关闭思考，温度 0，每次一个请求。设置和上面的速度测试不同：Gufo 用 2 个会话、32,768 上下文，Strata 用 128K 上下文，Halogen 用默认启动命令（Halogen + UD 因内存不足自动把 KV 池降到 262,144）。评测题都很短，预计不影响答案，但没有单独验证；这组运行的速度也不能和上面的速度数据直接比。“Halogen v2（关闭 answer guard）”只重跑了 GSM8K，启动命令只多加了 <code>-e HALOGEN_ANSWER_GUARD=0</code>。</p>
+    <p class="en">HumanEval, IFEval (lm_eval's official scoring), GSM8K and MMLU-Pro (stratified sample, fixed seed), with identical questions on all setups; thinking off, temperature 0, one request at a time. Settings differ from the speed tests above: Gufo uses 2 sessions and a 32,768 context, Strata a 128K context, Halogen its default launch command (Halogen + UD lowered its KV pool to 262,144 automatically for lack of memory). The questions are short, so answers shouldn't be affected, but this wasn't verified separately, and speeds from these runs aren't directly comparable to the figures above. "Halogen v2 (answer guard off)" reran GSM8K only, with <code>-e HALOGEN_ANSWER_GUARD=0</code> as the only change to the launch command.</p>
+  </section>
+  <section id="method-speed">
+    <h3 class="sec"><span class="zh">速度、内存与 PPL</span><span class="en">Speed, memory and perplexity</span></h3>
+    <p class="zh">llm-probe.sh 给每套配置发完全相同的请求：3 个短提示各生成 256 token；8K、32K、131K 提示各生成 128 token；同一个 30,023 token 长提示；每 0.5 秒记录 GTT、可用内存、芯片封装功耗和 GPU 温度。标准测试是 <code>strata bench run</code>（standard-v1），用 replay-bench.py 原样发给其他配置。PPL 用 Halogen 的 <code>ppl</code> 工具在 WikiText-2 测试集（wiki.test.raw，297,192 token）上计算，并做逐 token 配对检验。电源模式“平衡”。</p>
+    <p class="en">llm-probe.sh sends identical requests to every setup: 3 short prompts with 256 tokens out; 8K, 32K and 131K prompts with 128 tokens out; one 30,023-token prompt; GTT, MemAvailable, package power and GPU temperature sampled every 0.5 s. The standard benchmark is <code>strata bench run</code> (standard-v1), replayed unchanged with replay-bench.py. Perplexity is Halogen's <code>ppl</code> tool on the WikiText-2 test set (wiki.test.raw, 297,192 tokens), with a per-token paired test. Power profile: balanced.</p>
+  </section>
+  </div>
 
-  <h2 data-l="h_setup"></h2>
-  <div class="table-scroll"><table class="cfg" id="cfg-table"></table></div>
-  <h3 data-l="h_method"></h3>
-  <div data-l="method"></div>
-  <h3 data-l="h_hw"></h3>
-  <div data-l="hw"></div>
-  <h3 data-l="h_limits"></h3>
-  <div data-l="limits"></div>
-
-  <footer data-l="footer"></footer>
-</main>
-<div id="tip" role="tooltip"></div>
+  <footer class="foot">
+    <p><span class="zh">由 <a href="https://github.com/Johnny-dai-git">Johnny-dai-git</a> 在自己的机器上测试和整理。</span><span class="en">Run and written up by <a href="https://github.com/Johnny-dai-git">Johnny-dai-git</a> on their own machine.</span></p>
+    <p><span class="zh">源码与数据：</span><span class="en">Source and data: </span><a href="https://github.com/Johnny-dai-git/qwen38-flash-next-evals">github.com/Johnny-dai-git/qwen38-flash-next-evals</a></p>
+  </footer>
+</div>
 
 <script>
-const DATA = {"halogen-v2":{"humaneval":{"n":164,"acc":0.9634146341463414,"ci95":0.028733892851896755,"request_errors":0,"truncated":1,"no_answer":0,"avg_out_tokens":234.79268292682926,"total_minutes":7.6691666666666665},"ifeval":{"n":541,"acc":0.8280961182994455,"ci95":0.03179366947130303,"request_errors":0,"truncated":23,"no_answer":0,"avg_out_tokens":313.52125693160815,"total_minutes":49.954166666666666,"prompt_level_loose_acc":0.8724584103512015,"inst_level_strict_acc":0.8848920863309353,"inst_level_loose_acc":0.9172661870503597},"gsm8k":{"n":1319,"acc":0.8771796815769523,"ci95":0.017713854160781858,"request_errors":0,"truncated":444,"no_answer":0,"avg_out_tokens":597.524639878696,"total_minutes":156.78516666666667},"mmlu_pro":{"n":1000,"acc":0.774,"ci95":0.025922732078235887,"request_errors":0,"truncated":142,"no_answer":139,"avg_out_tokens":990.055,"total_minutes":222.75233333333333,"by_category":{"biology":0.9,"business":0.8181818181818182,"chemistry":0.7978723404255319,"computer science":0.7352941176470589,"economics":0.8285714285714286,"engineering":0.43209876543209874,"health":0.8382352941176471,"history":0.8125,"law":0.6923076923076923,"math":0.8482142857142857,"other":0.7272727272727273,"philosophy":0.8292682926829268,"physics":0.7962962962962963,"psychology":0.8484848484848485}}},"halogen-ud":{"humaneval":{"n":164,"acc":0.9695121951219512,"ci95":0.02631321193044121,"request_errors":0,"truncated":2,"no_answer":0,"avg_out_tokens":243.46341463414635,"total_minutes":13.182166666666665},"ifeval":{"n":541,"acc":0.8484288354898336,"ci95":0.03021853756183644,"request_errors":0,"truncated":21,"no_answer":0,"avg_out_tokens":316.39001848428836,"total_minutes":75.45466666666667,"prompt_level_loose_acc":0.9001848428835489,"inst_level_strict_acc":0.8968824940047961,"inst_level_loose_acc":0.9328537170263789},"gsm8k":{"n":1319,"acc":0.8407884761182715,"ci95":0.01974532554726344,"request_errors":0,"truncated":661,"no_answer":0,"avg_out_tokens":691.9605761940865,"total_minutes":267.32016666666664},"mmlu_pro":{"n":1000,"acc":0.761,"ci95":0.026433054428120866,"request_errors":0,"truncated":155,"no_answer":150,"avg_out_tokens":1015.456,"total_minutes":333.2568333333333,"by_category":{"biology":0.9,"business":0.803030303030303,"chemistry":0.7872340425531915,"computer science":0.6764705882352942,"economics":0.8,"engineering":0.38271604938271603,"health":0.8235294117647058,"history":0.78125,"law":0.6373626373626373,"math":0.8482142857142857,"other":0.7402597402597403,"philosophy":0.8536585365853658,"physics":0.7962962962962963,"psychology":0.8787878787878788}}},"gufo-ud":{"humaneval":{"n":164,"acc":0.9695121951219512,"ci95":0.02631321193044121,"request_errors":0,"truncated":2,"no_answer":0,"avg_out_tokens":241.9390243902439,"total_minutes":8.558},"ifeval":{"n":541,"acc":0.8317929759704251,"ci95":0.03152006662092428,"request_errors":0,"truncated":16,"no_answer":0,"avg_out_tokens":302.49537892791125,"total_minutes":70.18716666666666,"prompt_level_loose_acc":0.8761552680221811,"inst_level_strict_acc":0.8872901678657075,"inst_level_loose_acc":0.9184652278177458},"gsm8k":{"n":1319,"acc":0.9598180439727066,"ci95":0.01059848197839012,"request_errors":0,"truncated":25,"no_answer":0,"avg_out_tokens":375.30174374526155,"total_minutes":133.60366666666667},"mmlu_pro":{"n":1000,"acc":0.772,"ci95":0.026003520253996378,"request_errors":0,"truncated":144,"no_answer":141,"avg_out_tokens":1003.778,"total_minutes":317.733,"by_category":{"biology":0.8666666666666667,"business":0.8636363636363636,"chemistry":0.8085106382978723,"computer science":0.8235294117647058,"economics":0.8142857142857143,"engineering":0.38271604938271603,"health":0.8235294117647058,"history":0.84375,"law":0.6373626373626373,"math":0.8392857142857143,"other":0.7532467532467533,"philosophy":0.8536585365853658,"physics":0.7777777777777778,"psychology":0.8939393939393939}}},"strata-ud":{"humaneval":{"n":164,"acc":0.975609756097561,"ci95":0.023609146456502396,"request_errors":0,"truncated":1,"no_answer":0,"avg_out_tokens":242.7987804878049,"total_minutes":19.92983333333333},"ifeval":{"n":73,"acc":0.9315068493150684,"ci95":0.0579443692443365,"request_errors":0,"truncated":2,"no_answer":0,"avg_out_tokens":351.67123287671234,"total_minutes":14.952,"prompt_level_loose_acc":0.958904109589041,"inst_level_strict_acc":0.9565217391304348,"inst_level_loose_acc":0.9739130434782609}},"halogen-v2-aguard0":{"gsm8k":{"n":1319,"acc":0.9605761940864291,"ci95":0.01050216548535274,"request_errors":0,"truncated":21,"no_answer":0,"avg_out_tokens":360.29871114480665,"total_minutes":95.74133333333333}}};
+  // Measured values from this session's runs (tok/s, GiB). Series order: Halogen v2, Halogen + UD, Gufo + UD, Strata + UD.
+  const SERIES = [
+    {key: 'hv2', name: 'Halogen v2', color: '--hv2'},
+    {key: 'hud', name: 'Halogen + UD', color: '--hud'},
+    {key: 'gufo', name: 'Gufo + UD', color: '--gufo'},
+    {key: 'strata', name: 'Strata + UD', color: '--strata'},
+  ];
+  // The accuracy figures follow the two complete setups, plus Halogen v2 rerun with its answer guard off
+  const ACC_TWO = [SERIES[0], SERIES[2]];
+  const ACC_THREE = [SERIES[0], {key: 'hfix', name: 'Halogen v2, answer guard off', color: '--hfix'}, SERIES[2]];
+  const DECODE = [
+    {zh: '灯塔故事', en: 'Lighthouse story', v: [53.7, 36.3, 33.9, 29.9]},
+    {zh: '冰箱原理', en: 'How a fridge works', v: [54.6, 39.4, 41.9, 32.9]},
+    {zh: '写 Python 函数', en: 'Python function', v: [91.8, 67.1, 71.1, 39.1]},
+    {zh: '平均', en: 'Average', v: [66.7, 47.6, 49.0, 34.0], strong: true},
+  ];
+  const DECODE_CTX = [
+    {zh: '8K 提示后', en: 'After 8K', v: [61.8, 42.1, 45.0, 26.5]},
+    {zh: '3 万提示后', en: 'After 30K', v: [57.9, 38.9, 41.0, 29.1]},
+    {zh: '32K 提示后', en: 'After 32K', v: [56.8, 38.2, 35.7, 28.2]},
+    {zh: '131K 提示后', en: 'After 131K', v: [49.9, 37.6, 39.2, 29.3]},
+  ];
+  const PREFILL = [
+    {zh: '8K 提示', en: '8K prompt', v: [1742.0, 1415.6, 1477.8, 445.5]},
+    {zh: '3 万 token 提示', en: '30K prompt', v: [1814.3, 1490.2, 1491.9, 479.0]},
+    {zh: '32K 提示', en: '32K prompt', v: [1788.0, 1452.5, 1525.6, 479.0]},
+    {zh: '131K 提示', en: '131K prompt', v: [1688.2, 1400.7, 1432.5, 373.2]},
+  ];
+  const STD_DECODE = [
+    {zh: '短提示', en: 'Short', v: [56.5, 40.9, 49.8, 34.8]},
+    {zh: '4K 提示', en: '4K', v: [62.2, 47.4, 52.0, 29.8]},
+    {zh: '16K 提示', en: '16K', v: [62.4, 41.7, 51.3, 30.2]},
+  ];
+  const STD_PROMPT = [
+    {zh: '4K 提示', en: '4K', v: [1730, 1133, 1480, 391]},
+    {zh: '16K 提示', en: '16K', v: [1847, 1467, 1524, 476]},
+  ];
+  const PPL_DIFF = [
+    {zh: '4,096 token 一段', en: '4,096-token sequences', d: -0.0210, lo: -0.0229, hi: -0.0192},
+    {zh: '整个测试集一条长序列', en: 'Whole set as one sequence', d: -0.0199, lo: -0.0215, hi: -0.0183},
+  ];
+  const POWER = [
+    {zh: '平均', en: 'Average', v: [84, 84, 84, 82]},
+    {zh: '峰值', en: 'Peak', v: [98, 99, 98, 99]},
+  ];
+  const TEMP = [{zh: '最高 GPU 温度', en: 'Max GPU temperature', v: [82, 85, 85, 84]}];
+  const LOAD = [{zh: '加载到可用', en: 'Load to ready', v: [29, 42, 23, 62]}];
+  /*ACC*/const ACC = {"acc": [{"zh": "HumanEval", "en": "HumanEval", "v": [96.3, 97.0], "ci": [2.9, 2.6], "partial": [false, false]}, {"zh": "IFEval 严格", "en": "IFEval strict", "v": [82.8, 83.2], "ci": [3.2, 3.2], "partial": [false, false]}, {"zh": "GSM8K", "en": "GSM8K", "v": [87.7, 96.0], "ci": [1.8, 1.1], "partial": [false, false]}, {"zh": "MMLU-Pro", "en": "MMLU-Pro", "v": [77.4, 77.2], "ci": [2.6, 2.6], "partial": [false, false]}], "gsm": [{"zh": "准确率", "en": "Accuracy", "v": [87.7, 96.1, 96.0], "ci": [1.8, 1.1, 1.1], "partial": [false, false, false]}, {"zh": "触及 1,024 token 上限", "en": "Hit the 1,024-token limit", "v": [33.7, 1.6, 1.9], "partial": [false, false, false]}]};/*END*/
+  const SYSTEM_RAM = 122;
+  const MEMORY = [
+    {name: 'Halogen v2', color: '--hv2', parts: [
+      {zh: '锁定的权重', en: 'Pinned weights', v: 62.1},
+      {zh: '对话缓存池', en: 'KV pool', v: 4.1},
+      {zh: '工作区', en: 'Workspace', v: 8.0},
+    ]},
+    {name: 'Halogen + UD', color: '--hud', parts: [
+      {zh: '锁定的权重', en: 'Pinned weights', v: 79.6},
+      {zh: '对话缓存池', en: 'KV pool', v: 4.1},
+      {zh: '工作区', en: 'Workspace', v: 11.3},
+    ]},
+    {name: 'Gufo + UD', color: '--gufo', parts: [
+      {zh: '显卡 GTT', en: 'GPU GTT', v: 89.7},
+      {zh: '进程常驻', en: 'Process resident', v: 2.4},
+    ]},
+    {name: 'Strata + UD', color: '--strata', parts: [
+      {zh: '进程常驻', en: 'Process resident', v: 76.3},
+      {zh: '显卡 GTT', en: 'GPU GTT', v: 36.1},
+    ]},
+  ];
 
-const SETUPS = [
-  { id: "halogen-v2", engine: "halogen", label: "Halogen · HGN v2" },
-  { id: "halogen-v2-aguard0", engine: "halogen", label: "Halogen · HGN v2 · guard off", aguard: true },
-  { id: "halogen-ud", engine: "halogen", label: "Halogen · UD-Q4_K_XL" },
-  { id: "gufo-ud", engine: "gufo", label: "Gufo · UD-Q4_K_XL" },
-  { id: "strata-ud", engine: "strata", label: "Strata · UD-Q4_K_XL" },
-];
-const TASKS = [
-  { id: "humaneval", name: "HumanEval", metric: { zh: "pass@1，164 题", en: "pass@1, 164 problems" } },
-  { id: "ifeval", name: "IFEval", metric: { zh: "prompt-level strict，541 题", en: "prompt-level strict, 541 prompts" } },
-  { id: "gsm8k", name: "GSM8K", metric: { zh: "准确率，1,319 题", en: "accuracy, 1,319 problems" } },
-  { id: "mmlu_pro", name: "MMLU-Pro", metric: { zh: "准确率，按学科分层抽样 1,000 题", en: "accuracy, 1,000-question stratified sample" } },
-];
-const ISSUE = "https://github.com/peonist-ai/halogen-flash-server/issues/259";
+  const NS = 'http://www.w3.org/2000/svg';
+  const root = document.documentElement;
+  const lang = () => root.dataset.lang || 'zh';
+  const tx = (o) => (lang() === 'en' ? o.en : lang() === 'both' ? `${o.zh} · ${o.en}` : o.zh);
+  const css = (name) => getComputedStyle(root).getPropertyValue(name).trim();
+  const fmt = (v) => (v >= 100 ? Math.round(v).toLocaleString('en-US') : v.toFixed(1));
 
-const T = {
-  zh: {
-    kicker: "本地推理评测 · 2026 年 11 月",
-    title: "Qwen3.8-Flash-Next 在三个本地推理引擎上的准确率",
-    lede: "同一台 Strix Halo 机器、同一个模型、同一套题目，比较 Halogen、Gufo 和 Strata 跑出来的分数有没有差别。",
-    meta: "测试时间：2026-10-29 至 2026-11-12 · 关闭思考，贪心解码（温度 0） · 硬件：AMD Ryzen AI Max+ 395，128 GB",
-    f1: "<b>HumanEval、IFEval、MMLU-Pro：三个引擎打平。</b>跑完整的三套配置在这三项上的差距都落在 95% 置信区间内。",
-    f2: `<b>GSM8K：Halogen 默认设置低了约 8 个百分点，原因是 answer guard，不是模型。</b>Halogen v2 默认 87.7%，Gufo 96.0%。Halogen 的 answer guard 不让回答停在 <code>#### &lt;数字&gt;</code> 这一行，关掉它（<code>HALOGEN_ANSWER_GUARD=0</code>）后是 96.1%。已经报告给上游：<a href="${ISSUE}">halogen-flash-server#259</a>。`,
-    f3: "<b>Strata 只跑了一部分。</b>HumanEval 跑完了 164 题，IFEval 只跑了前 73 题就停了，GSM8K 和 MMLU-Pro 没跑。它的 IFEval 分数不能和其他配置直接比较。",
-    f4: "<b>MMLU-Pro 在三个引擎上都有约 14–15% 的题没给出答案。</b>这些回答写满了 2,048 token 上限，各引擎比例相近，所以不影响横向比较，但绝对分数会偏低。",
-    h_results: "总体结果",
-    results_intro: "每个点是一套配置在一项任务上的准确率，横线是 95% 置信区间。颜色代表引擎。",
-    chart_note: "横轴统一为 70%–100%。空心点表示题量不完整（Strata 的 IFEval 只有 73 题）。鼠标悬停或点按可以看具体数字。",
-    h_table: "数据表",
-    h_gsm8k: "GSM8K 的差距从哪来",
-    gsm8k_body: `<p>Halogen 0.18.15 加了一个 answer guard，用来防止长上下文里回答提前结束。它会阻止回答停在 Markdown 标题行上。GSM8K 要求最后一行写成 <code>#### &lt;数字&gt;</code>，guard 把这一行当成了标题，所以模型没法在这里结束，只能重复这一行、在后面补一个 json 代码块，或者不停往数字后面加 0，直到写满 1,024 token。</p>
-<p>对照实验里两次运行只差一个环境变量 <code>-e HALOGEN_ANSWER_GUARD=0</code>：</p>`,
-    h_trunc: "写满 token 上限的回答数",
-    trunc_intro: "回答写满 max_tokens 还没结束的题数。GSM8K 一列里 Halogen 默认设置的数字明显偏高，就是上面说的 answer guard 问题。",
-    trunc_note: "max_tokens：HumanEval 1,024，IFEval 1,280，GSM8K 1,024，MMLU-Pro 2,048。MMLU-Pro 中没给出答案的题按答错计。",
-    h_more: "细分数据",
-    h_ifeval: "IFEval 四个指标",
-    h_mmlu: "MMLU-Pro 各学科准确率",
-    h_setup: "测试配置",
-    h_method: "评测方法",
-    method: `<ul>
-<li>所有请求走 OpenAI 兼容的 <code>/v1/chat/completions</code>，一次只发一个请求。</li>
-<li>关闭思考（<code>chat_template_kwargs: {enable_thinking: false}</code>），温度 0，种子 0。</li>
-<li><b>HumanEval</b>：从回答中提取代码，在本机子进程里跑官方测试，每题 20 秒超时，计 pass@1。</li>
-<li><b>IFEval</b>：用 lm_eval 里的官方评分代码，主指标为 prompt-level strict。</li>
-<li><b>GSM8K</b>：提示要求最后一行写 <code>#### &lt;数字&gt;</code>，取回答里最后一个 <code>####</code> 后的数字；没有的话依次退回到 “answer is” 和最后一个数字。</li>
-<li><b>MMLU-Pro</b>：按学科分层抽 1,000 题（种子 1234），四套配置题目完全相同；用 “The answer is (X)” 提取选项。</li>
-<li>置信区间是二项分布的正态近似 95% 区间。</li>
-</ul>`,
-    h_hw: "硬件和软件",
-    hw: `<ul>
-<li>AMD Ryzen AI Max+ 395（Strix Halo），128 GB 统一内存</li>
-<li>Ubuntu 26.04.1，内核 7.0.0-42-generic，rootless Podman 5.7.0</li>
-<li>UD-Q4_K_XL 指 unsloth/Qwen3.8-Flash-Next-GGUF 的 UD-Q4_K_XL 量化（revision 38bb39e，已校验 sha256）</li>
-</ul>`,
-    h_limits: "局限",
-    limits: `<ul>
-<li>只测了关闭思考的模式。开启思考后分数和耗时都会不同。</li>
-<li>Halogen 的完整测试用的是 0.18.18。answer guard 问题在当前最新的 0.20.4 上仍然存在，但其他任务没有在 0.20.4 上重跑。</li>
-<li>Halogen + UD-Q4_K_XL 的 GSM8K（84.1%）同样有大量回答写满上限，很可能是同一个原因，但没有关掉 guard 重跑。</li>
-<li>每套配置每项只跑了一次。温度 0 下结果基本确定，但不同引擎的数值实现不同，个别题可能有出入。</li>
-</ul>`,
-    footer: `由 <a href="https://github.com/Johnny-dai-git">Johnny-dai-git</a> 测试和整理。原始汇总数据：<a href="data/summary.json">summary.json</a>。`,
-    th_setup: "配置", th_n: "题量", th_engine: "引擎", th_model: "模型文件", th_launch: "版本与启动参数",
-    th_default: "默认", th_off: "关闭 guard",
-    notrun: "未测", partial: "仅 73 题",
-    gsm_rows: ["准确率", "停在 <code>#### &lt;数字&gt;</code> 这一行", "答案后补一个 json 代码块再结束", "写满 1,024 token"],
-    if_metrics: ["Prompt strict（主指标）", "Prompt loose", "Instruction strict", "Instruction loose"],
-    tip_acc: "准确率", tip_ci: "95% 区间", tip_n: "题量", tip_trunc: "写满上限",
-    cat: { "biology": "生物", "business": "商科", "chemistry": "化学", "computer science": "计算机", "economics": "经济", "engineering": "工程", "health": "健康", "history": "历史", "law": "法律", "math": "数学", "other": "其他", "philosophy": "哲学", "physics": "物理", "psychology": "心理学" },
-    labels: { "halogen-v2": "Halogen · HGN v2", "halogen-v2-aguard0": "Halogen · HGN v2 · 关 guard", "halogen-ud": "Halogen · UD-Q4_K_XL", "gufo-ud": "Gufo · UD-Q4_K_XL", "strata-ud": "Strata · UD-Q4_K_XL" },
-    cfg: [
-      ["halogen-v2", "Halogen 0.18.18", "Halogen 原生 HGN v2 检查点（<code>qwen38-flash-next-v2.hgn</code>）", "模型卡上的默认启动命令，未设其他 <code>HALOGEN_*</code> 变量"],
-      ["halogen-v2-aguard0", "Halogen 0.18.18", "同上", "同上，加 <code>-e HALOGEN_ANSWER_GUARD=0</code>；只跑了 GSM8K"],
-      ["halogen-ud", "Halogen 0.18.18", "UD-Q4_K_XL GGUF（Halogen 启动时无损重打包），MTP 头和 tokenizer 用 Halogen 自带的", "<code>HALOGEN_CHECKPOINT</code> 指向 GGUF"],
-      ["gufo-ud", "Gufo 0.27.0", "UD-Q4_K_XL GGUF + MTP shared-Q8_0", "<code>gufo serve llm --speculative mtp --sessions 2 --context 32768</code>"],
-      ["strata-ud", "Strata 0.2.7（CLI 0.1.53，引擎 0.1.52 hip-halo）", "UD-Q4_K_XL GGUF", "<code>strata launch --family unsloth --model ud-q4_k_xl</code>；跑完 HumanEval 和 73 题 IFEval 后按计划停止"],
-    ],
-  },
-  en: {
-    kicker: "Local inference evals · November 2026",
-    title: "Qwen3.8-Flash-Next accuracy across three local inference engines",
-    lede: "Same Strix Halo machine, same model, same questions: does the score change between Halogen, Gufo and Strata?",
-    meta: "Run 2026-10-29 to 2026-11-12 · thinking off, greedy decoding (temperature 0) · AMD Ryzen AI Max+ 395, 128 GB",
-    f1: "<b>HumanEval, IFEval, MMLU-Pro: the engines are tied.</b> For the three complete setups, every difference on these tasks is inside the 95% interval.",
-    f2: `<b>GSM8K: Halogen's default is about 8 points lower because of its answer guard, not the model.</b> Halogen v2 scores 87.7% by default and Gufo 96.0%. Halogen's answer guard won't let a reply end on the <code>#### &lt;number&gt;</code> line; with <code>HALOGEN_ANSWER_GUARD=0</code> it scores 96.1%. Reported upstream as <a href="${ISSUE}">halogen-flash-server#259</a>.`,
-    f3: "<b>Strata is a partial run.</b> It finished all 164 HumanEval problems and the first 73 IFEval prompts, then stopped; GSM8K and MMLU-Pro weren't run. Its IFEval score isn't directly comparable with the others.",
-    f4: "<b>About 14–15% of MMLU-Pro replies give no answer on every engine.</b> They run into the 2,048-token limit. The rate is similar across engines, so the comparison holds, but absolute scores are lower than they would be with a higher limit.",
-    h_results: "Results",
-    results_intro: "Each dot is one setup's accuracy on one task; the line is the 95% interval. Color marks the engine.",
-    chart_note: "All panels share a 70%–100% axis. A hollow dot means an incomplete run (Strata's IFEval has 73 prompts). Hover or tap a dot for the numbers.",
-    h_table: "Table",
-    h_gsm8k: "Where the GSM8K gap comes from",
-    gsm8k_body: `<p>Halogen 0.18.15 added an answer guard to stop replies from ending early deep in a long context. It keeps a reply from ending on a Markdown heading line. GSM8K asks for a final <code>#### &lt;number&gt;</code> line, which the guard treats as a heading, so the model can't stop there. It repeats the line, appends a json code block, or keeps adding zeros to the number until it hits 1,024 tokens.</p>
-<p>In the comparison below, the only difference between the two runs is <code>-e HALOGEN_ANSWER_GUARD=0</code>:</p>`,
-    h_trunc: "Replies that hit the token limit",
-    trunc_intro: "Number of replies still going when they reached max_tokens. The high GSM8K counts for Halogen's default runs are the answer-guard problem above.",
-    trunc_note: "max_tokens: HumanEval 1,024, IFEval 1,280, GSM8K 1,024, MMLU-Pro 2,048. An MMLU-Pro reply with no answer counts as wrong.",
-    h_more: "Breakdowns",
-    h_ifeval: "IFEval, all four metrics",
-    h_mmlu: "MMLU-Pro accuracy by subject",
-    h_setup: "Setups",
-    h_method: "Method",
-    method: `<ul>
-<li>All requests go to the OpenAI-compatible <code>/v1/chat/completions</code>, one at a time.</li>
-<li>Thinking off (<code>chat_template_kwargs: {enable_thinking: false}</code>), temperature 0, seed 0.</li>
-<li><b>HumanEval</b>: code is extracted from the reply and run against the official tests in a local subprocess, 20 s timeout per problem, scored as pass@1.</li>
-<li><b>IFEval</b>: lm_eval's official scoring code; the headline metric is prompt-level strict.</li>
-<li><b>GSM8K</b>: the prompt asks for a final <code>#### &lt;number&gt;</code> line; the score uses the number after the last <code>####</code>, falling back to "answer is" and then the last number.</li>
-<li><b>MMLU-Pro</b>: 1,000 questions sampled per subject (seed 1234), identical for every setup; the choice is read from "The answer is (X)".</li>
-<li>Intervals are normal-approximation 95% binomial intervals.</li>
-</ul>`,
-    h_hw: "Hardware and software",
-    hw: `<ul>
-<li>AMD Ryzen AI Max+ 395 (Strix Halo), 128 GB unified memory</li>
-<li>Ubuntu 26.04.1, kernel 7.0.0-42-generic, rootless Podman 5.7.0</li>
-<li>UD-Q4_K_XL is unsloth/Qwen3.8-Flash-Next-GGUF's UD-Q4_K_XL quant (revision 38bb39e, sha256-checked)</li>
-</ul>`,
-    h_limits: "Limitations",
-    limits: `<ul>
-<li>Thinking-off only. Scores and run times will differ with thinking on.</li>
-<li>The full Halogen runs used 0.18.18. The answer-guard problem still reproduces on 0.20.4, the latest release, but the other tasks weren't re-run there.</li>
-<li>Halogen + UD-Q4_K_XL on GSM8K (84.1%) also has many replies that hit the limit, likely for the same reason, but it wasn't re-run with the guard off.</li>
-<li>Each setup ran each task once. At temperature 0 that is nearly deterministic, but engines differ numerically and a few questions could flip.</li>
-</ul>`,
-    footer: `Run and written up by <a href="https://github.com/Johnny-dai-git">Johnny-dai-git</a>. Raw summary data: <a href="data/summary.json">summary.json</a>.`,
-    th_setup: "Setup", th_n: "n", th_engine: "Engine", th_model: "Model file", th_launch: "Version and launch options",
-    th_default: "Default", th_off: "Guard off",
-    notrun: "not run", partial: "73 only",
-    gsm_rows: ["Accuracy", "Ends on the <code>#### &lt;number&gt;</code> line", "Appends a json block after the answer, then ends", "Hits 1,024 tokens"],
-    if_metrics: ["Prompt strict (headline)", "Prompt loose", "Instruction strict", "Instruction loose"],
-    tip_acc: "Accuracy", tip_ci: "95% interval", tip_n: "n", tip_trunc: "Hit limit",
-    cat: null,
-    labels: { "halogen-v2": "Halogen · HGN v2", "halogen-v2-aguard0": "Halogen · HGN v2 · guard off", "halogen-ud": "Halogen · UD-Q4_K_XL", "gufo-ud": "Gufo · UD-Q4_K_XL", "strata-ud": "Strata · UD-Q4_K_XL" },
-    cfg: [
-      ["halogen-v2", "Halogen 0.18.18", "Halogen's native HGN v2 checkpoint (<code>qwen38-flash-next-v2.hgn</code>)", "Default launch command from the model card, no other <code>HALOGEN_*</code> variables"],
-      ["halogen-v2-aguard0", "Halogen 0.18.18", "Same as above", "Same, plus <code>-e HALOGEN_ANSWER_GUARD=0</code>; GSM8K only"],
-      ["halogen-ud", "Halogen 0.18.18", "UD-Q4_K_XL GGUF (losslessly repacked by Halogen at start), Halogen's own MTP head and tokenizer", "<code>HALOGEN_CHECKPOINT</code> pointed at the GGUF"],
-      ["gufo-ud", "Gufo 0.27.0", "UD-Q4_K_XL GGUF + MTP shared-Q8_0", "<code>gufo serve llm --speculative mtp --sessions 2 --context 32768</code>"],
-      ["strata-ud", "Strata 0.2.7 (CLI 0.1.53, engine 0.1.52 hip-halo)", "UD-Q4_K_XL GGUF", "<code>strata launch --family unsloth --model ud-q4_k_xl</code>; stopped as planned after HumanEval and 73 IFEval prompts"],
-    ],
-  },
-};
+  function el(parent, tag, attrs = {}, text) {
+    const n = document.createElementNS(NS, tag);
+    for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+    if (text != null) n.textContent = text;
+    parent.appendChild(n);
+    return n;
+  }
 
-const pct = (x, d = 1) => (x * 100).toFixed(d);
-const NS = "http://www.w3.org/2000/svg";
-const el = (tag, attrs = {}, parent) => { const n = document.createElementNS(NS, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); if (parent) parent.appendChild(n); return n; };
-let lang = "zh";
+  function widest(svg, labels, size) {
+    const probe = el(svg, 'text', {'font-size': size});
+    let w = 0;
+    for (const l of labels) { probe.textContent = l; w = Math.max(w, probe.getComputedTextLength()); }
+    probe.remove();
+    return w;
+  }
 
-function cell(s, t) { return DATA[s] && DATA[s][t]; }
+  function niceMax(v) {
+    const step = Math.pow(10, Math.floor(Math.log10(v)));
+    return Math.ceil(v / step * 2) / 2 * step;
+  }
 
-function drawChart() {
-  const L = T[lang], box = document.getElementById("chart");
-  box.innerHTML = "";
-  const lg = document.getElementById("legend");
-  lg.innerHTML = [["halogen", "Halogen"], ["gufo", "Gufo"], ["strata", "Strata"]]
-    .map(([k, n]) => `<span><i style="background:var(--${k})"></i>${n}</span>`).join("") +
-    `<span><i class="hollow"></i>${lang === "zh" ? "题量不完整" : "incomplete run"}</span>`;
-  const LO = 0.70, HI = 1.0;
-  for (const task of TASKS) {
-    const rows = SETUPS.filter(s => cell(s.id, task.id) || (!s.aguard && s.id !== "halogen-v2-aguard0"));
-    const p = document.createElement("div"); p.className = "panel";
-    p.innerHTML = `<h3>${task.name}</h3><p class="sub">${task.metric[lang]}</p>`;
-    box.appendChild(p);
-    const W = 420, labelW = 0, rowH = 40, top = 6, bottom = 26, H = top + rows.length * rowH + bottom;
-    const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, width: "100%", role: "img", "aria-label": task.name }, p);
-    const x0 = 16, x1 = W - 56;
-    const X = v => x0 + (Math.max(LO, Math.min(HI, v)) - LO) / (HI - LO) * (x1 - x0);
-    for (let g = LO; g <= HI + 1e-9; g += 0.05) {
-      el("line", { x1: X(g), x2: X(g), y1: top, y2: H - bottom, stroke: "var(--grid)", "stroke-width": 1 }, svg);
-      const tx = el("text", { x: X(g), y: H - 8, "text-anchor": "middle", "font-size": 11, fill: "var(--text-muted)" }, svg);
-      tx.textContent = Math.round(g * 100) + "%";
-    }
-    rows.forEach((s, i) => {
-      const y = top + i * rowH, cy = y + 27;
-      const lab = el("text", { x: 4, y: y + 12, "font-size": 12, fill: "var(--text-secondary)" }, svg);
-      lab.textContent = L.labels[s.id];
-      const c = cell(s.id, task.id);
-      if (!c) {
-        const na = el("text", { x: X(LO) , y: cy + 4, "font-size": 12, fill: "var(--text-muted)", "font-style": "italic" }, svg);
-        na.textContent = L.notrun; return;
+  const niceScale = (top) => {
+    const t = Math.max(top, 1), raw = t / 5, p = 10 ** Math.floor(Math.log10(raw));
+    const step = [1, 2, 2.5, 5, 10].find((m) => m * p >= raw) * p;
+    return {step, max: Math.ceil(t / step) * step};
+  };
+  const catLines = (r) => (lang() === 'en' ? [r.en] : lang() === 'both' && r.zh !== r.en ? [r.zh, r.en] : [r.zh]);
+
+  // Text measurement with a probe element; wraps on spaces, or per character for text without them
+  function measurer(svg, size, weight = 400) {
+    const probe = el(svg, 'text', {'font-size': size, 'font-weight': weight});
+    const width = (t) => { probe.textContent = t; return probe.getComputedTextLength(); };
+    const wrap = (text, maxW) => {
+      if (width(text) <= maxW) return [text];
+      const spaced = text.includes(' ');
+      if (!spaced && !/[^\x00-\x7f]/.test(text)) return [text];  // a single Latin word stays whole
+      const units = spaced ? text.split(' ') : [...text], join = spaced ? ' ' : '';
+      const lines = []; let cur = '';
+      for (const u of units) {
+        const next = cur ? cur + join + u : u;
+        if (cur && width(next) > maxW) { lines.push(cur); cur = u; } else cur = next;
       }
-      const color = `var(--${s.engine})`, partial = s.id === "strata-ud" && task.id === "ifeval";
-      el("line", { x1: X(c.acc - c.ci95), x2: X(c.acc + c.ci95), y1: cy, y2: cy, stroke: color, "stroke-width": 2, "stroke-linecap": "round", opacity: 0.55 }, svg);
-      el("circle", { cx: X(c.acc), cy, r: 6, fill: partial ? "var(--bg)" : color, stroke: partial ? color : "var(--bg)", "stroke-width": partial ? 2.5 : 2 }, svg);
-      const val = el("text", { x: x1 + 8, y: cy + 4, "font-size": 12, "font-weight": 600, fill: "var(--text-primary)" }, svg);
-      val.textContent = pct(c.acc) + "%";
-      const hit = el("rect", { x: 0, y, width: W, height: rowH, fill: "transparent", tabindex: 0 }, svg);
-      const html = `<b>${L.labels[s.id]} · ${task.name}</b><br>${L.tip_acc}: ${pct(c.acc)}%<br>${L.tip_ci}: ${pct(c.acc - c.ci95)}–${pct(Math.min(1, c.acc + c.ci95))}%<br>${L.tip_n}: ${c.n.toLocaleString()}<br>${L.tip_trunc}: ${c.truncated}`;
-      const show = e => { const tip = document.getElementById("tip"); tip.innerHTML = html; tip.style.opacity = 1;
-        const r = e.clientX !== undefined && e.clientX ? { x: e.clientX, y: e.clientY } : (() => { const b = hit.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top }; })();
-        const tw = tip.offsetWidth; tip.style.left = Math.max(8, Math.min(window.innerWidth - tw - 8, r.x + 12)) + "px"; tip.style.top = (r.y + 14) + "px"; };
-      const hide = () => document.getElementById("tip").style.opacity = 0;
-      hit.addEventListener("pointermove", show); hit.addEventListener("pointerdown", show);
-      hit.addEventListener("pointerleave", hide); hit.addEventListener("focus", show); hit.addEventListener("blur", hide);
-    });
+      if (cur) lines.push(cur);
+      return lines;
+    };
+    return {width, wrap, done: () => probe.remove()};
   }
-}
 
-function tables() {
-  const L = T[lang];
-  const sw = s => `<span class="swatch" style="background:var(--${SETUPS.find(x => x.id === s).engine})"></span>`;
-  // main
-  let h = `<thead><tr><th>${L.th_setup}</th>${TASKS.map(t => `<th>${t.name}</th>`).join("")}</tr></thead><tbody>`;
-  for (const s of SETUPS) {
-    h += `<tr><td>${sw(s.id)}${L.labels[s.id]}</td>`;
-    for (const t of TASKS) {
-      const c = cell(s.id, t.id);
-      if (!c) { h += `<td class="na">—</td>`; continue; }
-      const extra = c.n !== { humaneval: 164, ifeval: 541, gsm8k: 1319, mmlu_pro: 1000 }[t.id] ? ` <span class="ci">(n=${c.n})</span>` : "";
-      h += `<td>${pct(c.acc)} <span class="ci">± ${pct(c.ci95)}</span>${extra}</td>`;
+  // Standard grouped column figure: y axis with ticks and a title, optional 95% CI whiskers,
+  // dashed lighter columns for unfinished runs, a dash where a setup has not run.
+  // Category labels wrap to the group width; values stand upright when they fit the column, else rotate.
+  function barFigure(box, {rows, y, dec = 1, scale, best, series = SERIES}) {
+    box.replaceChildren();
+    const W = Math.max(260, box.clientWidth), narrow = W < 480, n = series.length;
+    const svg = el(box, 'svg', {role: 'img'});
+    const tops = rows.flatMap((r) => r.v.map((v, i) => (v == null ? 0 : v + ((r.ci && r.ci[i]) || 0))));
+    const {step, max} = scale || niceScale(Math.max(...tops));
+    const num = (v) => (v >= 1000 ? Math.round(v).toLocaleString('en-US') : v.toFixed(dec));
+    const tick = (v) => (v >= 1000 ? v.toLocaleString('en-US') : String(+v.toFixed(2)));
+    const ticks = [];
+    for (let t = 0; t <= max + step / 2; t += step) ticks.push(+t.toFixed(6));
+    const titleLines = catLines(y), catSize = narrow ? 11 : 12;
+    const mTick = measurer(svg, 11), mCat = measurer(svg, catSize);
+    const tickW = Math.max(...ticks.map((t) => mTick.width(tick(t))));
+    const ml = 16 * titleLines.length + 22 + Math.ceil(tickW), mr = 6;
+    const groupW = (W - ml - mr) / rows.length;
+    const gap = 2, fill = narrow ? 0.86 : 0.78, barW = Math.min(40, (groupW * fill - gap * (n - 1)) / n), block = n * barW + (n - 1) * gap;
+    const valSize = barW + gap < 12.5 ? 9 : narrow ? 10 : 10.5, mVal = measurer(svg, valSize);
+    const cats = rows.map((r) => catLines(r).flatMap((t) => mCat.wrap(t, groupW - 6)));
+    const catH = Math.max(...cats.map((c) => c.length)) * 15;
+    const labelW = Math.max(0, ...rows.flatMap((r) => r.v.filter((v) => v != null).map((v) => mVal.width(num(v)))));
+    const upright = labelW + 6 <= barW;
+    const mt = upright ? 26 : Math.ceil(labelW) + 14, mb = 16 + catH, plot = narrow ? 180 : 220;
+    const H = mt + plot + mb;
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.setAttribute('aria-label', rows.map((r) => `${tx(r)}: ${series.map((s, i) => `${s.name} ${r.v[i] == null ? '-' : num(r.v[i])}`).join(', ')}`).join('; '));
+    const y0 = mt + plot, sy = (v) => y0 - (v / max) * plot;
+    for (const t of ticks) {
+      if (t > 0) el(svg, 'line', {x1: ml, x2: W - mr, y1: sy(t), y2: sy(t), stroke: css('--grid')});
+      el(svg, 'line', {x1: ml - 4, x2: ml, y1: sy(t), y2: sy(t), stroke: css('--muted')});
+      el(svg, 'text', {x: ml - 8, y: sy(t) + 4, 'text-anchor': 'end', 'font-size': 11, fill: css('--muted'), class: 'num'}, tick(t));
     }
-    h += "</tr>";
+    titleLines.forEach((t, k) => el(svg, 'text', {transform: `translate(${17 + k * 16} ${mt + plot / 2}) rotate(-90)`, 'text-anchor': 'middle', 'font-size': 11.5, fill: css('--muted')}, t));
+    rows.forEach((r, i) => {
+      const gx = ml + i * groupW + (groupW - block) / 2;
+      const present = r.v.filter((v) => v != null);
+      const top = best && present.length ? Math[best](...present) : null;
+      series.forEach((s, j) => {
+        const v = r.v[j], cx = gx + j * (barW + gap) + barW / 2;
+        if (v == null) {
+          el(svg, 'text', {x: cx, y: y0 - 6, 'text-anchor': 'middle', 'font-size': 12, fill: css('--muted')}, '—');
+          return;
+        }
+        const color = css(s.color), part = r.partial && r.partial[j], ci = (r.ci && r.ci[j]) || 0;
+        const rect = {x: cx - barW / 2, y: sy(v), width: barW, height: Math.max(1, y0 - sy(v)), fill: color};
+        if (part) Object.assign(rect, {'fill-opacity': .3, stroke: color, 'stroke-width': 1, 'stroke-dasharray': '3 2'});
+        el(svg, 'rect', rect);
+        if (ci) {
+          const hi = sy(Math.min(max, v + ci)), lo = sy(Math.max(0, v - ci)), cap = Math.min(5, barW / 3);
+          for (const [a, b, c, d] of [[cx, hi, cx, lo], [cx - cap, hi, cx + cap, hi], [cx - cap, lo, cx + cap, lo]])
+            el(svg, 'line', {x1: a, y1: b, x2: c, y2: d, stroke: css('--fg'), 'stroke-width': 1.2});
+        }
+        const yl = sy(Math.min(max, v + ci)) - 6, strong = v === top;
+        const t = {'font-size': valSize, class: 'num', fill: strong ? css('--fg') : css('--muted'), 'font-weight': strong ? 600 : 400};
+        if (upright) el(svg, 'text', {x: cx, y: yl, 'text-anchor': 'middle', ...t}, num(v));
+        else el(svg, 'text', {transform: `translate(${cx + 3.5} ${yl}) rotate(-90)`, ...t}, num(v));
+      });
+      cats[i].forEach((t, k) => el(svg, 'text', {x: ml + (i + .5) * groupW, y: y0 + 18 + k * 15, 'text-anchor': 'middle', 'font-size': catSize, fill: css('--fg')}, t));
+    });
+    el(svg, 'line', {x1: ml, x2: ml, y1: mt - 4, y2: y0, stroke: css('--muted')});
+    el(svg, 'line', {x1: ml, x2: W - mr, y1: y0, y2: y0, stroke: css('--muted')});
+    mTick.done(); mCat.done(); mVal.done();
   }
-  document.getElementById("main-table").innerHTML = h + "</tbody>";
-  // gsm8k guard comparison (from the per-reply analysis of the two runs)
-  const g = [["87.7% (1,157)", "<b>96.1%</b> (1,267)"], ["1", "1,297"], ["861", "0"], ["444", "21"]];
-  document.getElementById("gsm-table").innerHTML =
-    `<thead><tr><th>Halogen v2 · GSM8K · 1,319</th><th>${L.th_default}</th><th>${L.th_off}</th></tr></thead><tbody>` +
-    L.gsm_rows.map((r, i) => `<tr${i === 0 ? ' class="hl"' : ""}><td>${r}</td><td>${g[i][0]}</td><td>${g[i][1]}</td></tr>`).join("") + "</tbody>";
-  document.getElementById("gsm-example").textContent = lang === "zh"
-    ? "# 第 7 题，标准答案 160，默认设置下的回答结尾：\n#### 160\n#### 160\n#### 160\n…（一直重复到 1,024 token）\n#### 1        ← 最后一行被截断，按 1 计分\n\n# 关闭 guard：463 token 后停在 “#### 160”，答对。"
-    : "# Question 7, gold answer 160. End of the default reply:\n#### 160\n#### 160\n#### 160\n… (repeats until 1,024 tokens)\n#### 1        <- last line is cut off and scored as 1\n\n# Guard off: stops on \"#### 160\" after 463 tokens, correct.";
-  // truncation
-  h = `<thead><tr><th>${L.th_setup}</th>${TASKS.map(t => `<th>${t.name}</th>`).join("")}</tr></thead><tbody>`;
-  for (const s of SETUPS) {
-    h += `<tr><td>${sw(s.id)}${L.labels[s.id]}</td>` + TASKS.map(t => { const c = cell(s.id, t.id); return c ? `<td>${c.truncated} <span class="ci">/ ${c.n.toLocaleString()}</span></td>` : `<td class="na">—</td>`; }).join("") + "</tr>";
-  }
-  document.getElementById("trunc-table").innerHTML = h + "</tbody>";
-  // ifeval
-  const ifs = SETUPS.filter(s => cell(s.id, "ifeval"));
-  const keys = ["acc", "prompt_level_loose_acc", "inst_level_strict_acc", "inst_level_loose_acc"];
-  h = `<thead><tr><th></th>${ifs.map(s => `<th>${sw(s.id)}${L.labels[s.id]}${s.id === "strata-ud" ? ` <span class="ci">(${L.partial})</span>` : ""}</th>`).join("")}</tr></thead><tbody>`;
-  keys.forEach((k, i) => { h += `<tr><td>${L.if_metrics[i]}</td>${ifs.map(s => `<td>${pct(cell(s.id, "ifeval")[k])}</td>`).join("")}</tr>`; });
-  document.getElementById("ifeval-table").innerHTML = h + "</tbody>";
-  // mmlu
-  const ms = SETUPS.filter(s => cell(s.id, "mmlu_pro"));
-  const cats = Object.keys(cell("halogen-v2", "mmlu_pro").by_category).sort();
-  h = `<thead><tr><th></th>${ms.map(s => `<th>${sw(s.id)}${L.labels[s.id]}</th>`).join("")}</tr></thead><tbody>`;
-  for (const c of cats) {
-    const vals = ms.map(s => cell(s.id, "mmlu_pro").by_category[c]);
-    h += `<tr><td>${L.cat ? L.cat[c] : c[0].toUpperCase() + c.slice(1)}</td>${vals.map(v => `<td>${pct(v)}</td>`).join("")}</tr>`;
-  }
-  h += `<tr class="hl"><td>${lang === "zh" ? "总计" : "Overall"}</td>${ms.map(s => `<td>${pct(cell(s.id, "mmlu_pro").acc)}</td>`).join("")}</tr>`;
-  document.getElementById("mmlu-table").innerHTML = h + "</tbody>";
-  // config
-  h = `<thead><tr><th>${L.th_setup}</th><th>${L.th_engine}</th><th>${L.th_model}</th><th>${L.th_launch}</th></tr></thead><tbody>`;
-  for (const r of L.cfg) h += `<tr><td>${sw(r[0])}${L.labels[r[0]]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td></tr>`;
-  document.getElementById("cfg-table").innerHTML = h + "</tbody>";
-}
 
-function setLang(l) {
-  lang = l === "en" ? "en" : "zh";
-  document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
-  document.title = lang === "zh" ? "Qwen3.8-Flash-Next 本地引擎评测" : "Qwen3.8-Flash-Next Local Engine Evals";
-  document.querySelectorAll("[data-l]").forEach(n => { n.innerHTML = T[lang][n.dataset.l]; });
-  document.querySelectorAll("[data-set-lang]").forEach(b => b.setAttribute("aria-pressed", b.dataset.setLang === lang));
-  drawChart(); tables();
-  try { localStorage.setItem("lang", lang); } catch (e) {}
-}
-document.querySelectorAll("[data-set-lang]").forEach(b => b.addEventListener("click", () => setLang(b.dataset.setLang)));
-let init = new URLSearchParams(location.search).get("lang");
-if (!init) { try { init = localStorage.getItem("lang"); } catch (e) {} }
-if (!init) init = (navigator.language || "").toLowerCase().startsWith("zh") ? "zh" : "en";
-setLang(init);
+  // Forest plot of paired differences: point estimate, 95% CI, reference line at zero
+  function forest(box, rows) {
+    box.replaceChildren();
+    const W = Math.max(260, box.clientWidth), narrow = W < 560;
+    const svg = el(box, 'svg', {role: 'img'});
+    const m13 = measurer(svg, 13), m11 = measurer(svg, 11.5), mLab = measurer(svg, 12.5);
+    const ml = narrow ? 8 : Math.ceil(Math.max(...rows.map((r) => m13.width(tx(r))))) + 16, mr = 12;
+    const labs = rows.map((r) => (narrow ? mLab.wrap(tx(r), W - ml - mr) : [tx(r)]));
+    const title = catLines({zh: '差值（nats/token），负值表示 UD-Q4_K_XL 更好', en: 'Difference (nats/token); negative favours UD-Q4_K_XL'}).flatMap((t) => m11.wrap(t, W - ml - mr));
+    const rowH = narrow ? 50 + 16 * Math.max(...labs.map((l) => l.length)) : 44, mt = 8, mb = 28 + title.length * 15;
+    const H = mt + rows.length * rowH + mb;
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.setAttribute('aria-label', rows.map((r) => `${tx(r)}: ${r.d} (${r.lo} to ${r.hi})`).join('; '));
+    const lo = -0.03, hi = 0, sx = (v) => ml + ((v - lo) / (hi - lo)) * (W - ml - mr), y0 = mt + rows.length * rowH;
+    for (const t of [-0.03, -0.02, -0.01, 0]) {
+      el(svg, 'line', {x1: sx(t), x2: sx(t), y1: mt, y2: y0, stroke: css(t === 0 ? '--muted' : '--grid'), 'stroke-dasharray': t === 0 ? '4 3' : ''});
+      el(svg, 'text', {x: sx(t), y: y0 + 16, 'text-anchor': t === 0 ? 'end' : t === lo ? 'start' : 'middle', 'font-size': 11, fill: css('--muted'), class: 'num'}, t === 0 ? '0' : t.toFixed(2).replace('-', '−'));
+    }
+    el(svg, 'line', {x1: ml, x2: W - mr, y1: y0, y2: y0, stroke: css('--muted')});
+    title.forEach((t, k) => el(svg, 'text', {x: (ml + W - mr) / 2, y: y0 + 36 + k * 15, 'text-anchor': 'middle', 'font-size': 11.5, fill: css('--muted')}, t));
+    rows.forEach((r, i) => {
+      const cy = mt + i * rowH + rowH - 16;
+      if (narrow) labs[i].forEach((t, k) => el(svg, 'text', {x: ml, y: cy - 28 - (labs[i].length - 1 - k) * 16, 'font-size': 12.5, fill: css('--fg')}, t));
+      else el(svg, 'text', {x: ml - 14, y: cy + 4, 'text-anchor': 'end', 'font-size': 13, fill: css('--fg')}, tx(r));
+      for (const [a, b, c, d] of [[sx(r.lo), cy, sx(r.hi), cy], [sx(r.lo), cy - 5, sx(r.lo), cy + 5], [sx(r.hi), cy - 5, sx(r.hi), cy + 5]])
+        el(svg, 'line', {x1: a, y1: b, x2: c, y2: d, stroke: css('--fg'), 'stroke-width': 1.4});
+      el(svg, 'circle', {cx: sx(r.d), cy, r: 4.5, fill: css('--gufo')});
+      el(svg, 'text', {x: sx(r.d), y: cy - 10, 'text-anchor': 'middle', 'font-size': 11, class: 'num', fill: css('--fg'), 'font-weight': 600}, r.d.toFixed(4).replace('-', '−'));
+    });
+    m13.done(); m11.done(); mLab.done();
+  }
+
+  // One stacked bar per setup against the 122 GiB of system RAM; each bar's legend wraps to the width
+  function memoryBars(box) {
+    box.replaceChildren();
+    const W = Math.max(260, box.clientWidth), narrow = W < 480;
+    const svg = el(box, 'svg', {role: 'img'});
+    const m13 = measurer(svg, 13, 600), m11 = measurer(svg, 11);
+    const ml = narrow ? 0 : Math.ceil(Math.max(...MEMORY.map((m) => m13.width(m.name)))) + 16;
+    const x0 = ml, x1 = W - 8, span = x1 - x0;
+    const sx = (v) => x0 + (v / SYSTEM_RAM) * span;
+    const legends = MEMORY.map((m) => {
+      const lines = [[]]; let lx = 0;
+      m.parts.forEach((p, j) => {
+        const label = `${tx(p)} ${p.v.toFixed(1)}`, w = 13 + m11.width(label) + 14;
+        if (lx && lx + w > span) { lines.push([]); lx = 0; }
+        lines[lines.length - 1].push({j, label, x: lx});
+        lx += w;
+      });
+      return lines;
+    });
+    const barH = 24, labelH = narrow ? 20 : 0, top = 24, axis = 22;
+    const rowHs = legends.map((l) => labelH + barH + 8 + l.length * 16 + 12);
+    const H = top + rowHs.reduce((a, b) => a + b, 0) + axis;
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.setAttribute('aria-label', MEMORY.map((m) => `${m.name} ${m.parts.reduce((a, p) => a + p.v, 0).toFixed(1)} GiB`).join(', '));
+    for (const t of [0, 30, 60, 90, 122]) {
+      el(svg, 'line', {x1: sx(t), x2: sx(t), y1: top - 4, y2: H - axis + 4, stroke: css('--grid')});
+      el(svg, 'text', {x: sx(t), y: H - 6, 'text-anchor': t === 122 ? 'end' : t === 0 && narrow ? 'start' : 'middle', 'font-size': 11, fill: css('--muted'), class: 'num'}, t === 122 ? '122 GiB' : t);
+    }
+    el(svg, 'line', {x1: sx(SYSTEM_RAM), x2: sx(SYSTEM_RAM), y1: top - 4, y2: H - axis + 4, stroke: css('--muted'), 'stroke-dasharray': '3 3'});
+    el(svg, 'text', {x: sx(SYSTEM_RAM), y: 12, 'text-anchor': 'end', 'font-size': 11, fill: css('--muted')}, tx({zh: '系统内存', en: 'System RAM'}));
+    let y = top;
+    MEMORY.forEach((m, i) => {
+      const by = y + labelH;
+      const total = m.parts.reduce((a, p) => a + p.v, 0);
+      if (narrow) el(svg, 'text', {x: 0, y: y + 14, 'font-size': 13, 'font-weight': 600, fill: css('--fg')}, `${m.name}  ${total.toFixed(1)} GiB`);
+      else el(svg, 'text', {x: ml - 14, y: by + barH / 2 + 5, 'text-anchor': 'end', 'font-size': 13, 'font-weight': 600, fill: css('--fg')}, m.name);
+      let x = 0;
+      m.parts.forEach((p, j) => {
+        const op = [1, .6, .35][j];
+        el(svg, 'rect', {x: sx(x), y: by, width: Math.max(1, sx(x + p.v) - sx(x) - 1.5), height: barH, fill: css(m.color), 'fill-opacity': op});
+        if (sx(x + p.v) - sx(x) > 44) el(svg, 'text', {x: sx(x) + 7, y: by + barH / 2 + 4, 'font-size': 11.5, fill: j === 0 ? css('--bg') : css('--fg'), class: 'num'}, p.v.toFixed(1));
+        x += p.v;
+      });
+      if (!narrow) {
+        const room = sx(SYSTEM_RAM) - sx(total);
+        const tt = el(svg, 'text', {x: sx(total) + 6, y: by + barH / 2 + 4, 'font-size': 11.5, fill: css('--fg'), class: 'num', 'font-weight': 600}, total.toFixed(1));
+        if (room < 44) { tt.setAttribute('x', sx(total) - 6); tt.setAttribute('text-anchor', 'end'); }
+      }
+      legends[i].forEach((line, li) => line.forEach(({j, label, x: lx}) => {
+        const ly = by + barH + 8 + li * 16;
+        el(svg, 'rect', {x: x0 + lx, y: ly, width: 9, height: 9, rx: 1.5, fill: css(m.color), 'fill-opacity': [1, .6, .35][j]});
+        el(svg, 'text', {x: x0 + lx + 13, y: ly + 8.5, 'font-size': 11, fill: css('--muted')}, label);
+      }));
+      y += rowHs[i];
+    });
+    m13.done(); m11.done();
+  }
+
+  function drawAll() {
+    const $ = (id) => document.getElementById(id);
+    const TOK = {zh: '速度（tok/s）', en: 'Speed (tok/s)'};
+    barFigure($('f-acc'), {rows: ACC.acc, series: ACC_TWO, y: {zh: '准确率（%）', en: 'Accuracy (%)'}, scale: {step: 20, max: 100}});
+    barFigure($('f-gsm'), {rows: ACC.gsm, series: ACC_THREE, y: {zh: '占全部题目（%）', en: 'Share of questions (%)'}, scale: {step: 20, max: 100}});
+    forest($('f-ppl'), PPL_DIFF);
+    barFigure($('c-decode'), {rows: DECODE, y: TOK, best: 'max'});
+    barFigure($('c-decode-ctx'), {rows: DECODE_CTX, y: TOK, best: 'max'});
+    barFigure($('f-std-decode'), {rows: STD_DECODE, y: TOK, best: 'max'});
+    barFigure($('f-std-prompt'), {rows: STD_PROMPT, y: TOK, best: 'max', dec: 0});
+    barFigure($('c-prefill'), {rows: PREFILL, y: TOK, best: 'max', dec: 0});
+    memoryBars($('c-memory'));
+    barFigure($('f-power'), {rows: POWER, y: {zh: '功耗（W）', en: 'Power (W)'}, dec: 0});
+    barFigure($('f-temp'), {rows: TEMP, y: {zh: '温度（°C）', en: 'Temperature (°C)'}, dec: 0});
+    barFigure($('f-load'), {rows: LOAD, y: {zh: '时间（秒）', en: 'Time (s)'}, dec: 0, best: 'min'});
+  }
+
+  function setLang(l) {
+    root.dataset.lang = l;
+    root.lang = l === 'en' ? 'en' : 'zh-CN';
+    document.querySelectorAll('.lang button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.lang === l)));
+    try { localStorage.setItem('svh-lang', l); } catch (e) { /* storage unavailable */ }
+    drawAll();
+  }
+
+  document.querySelectorAll('.lang button').forEach((b) => b.addEventListener('click', () => setLang(b.dataset.lang)));
+  let saved = null;
+  try { saved = localStorage.getItem('svh-lang'); } catch (e) { /* storage unavailable */ }
+  setLang(['zh', 'en', 'both'].includes(saved) ? saved : 'zh');
+
+  let raf = 0;
+  new ResizeObserver(() => { cancelAnimationFrame(raf); raf = requestAnimationFrame(drawAll); }).observe(document.querySelector('.page'));
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', drawAll);
+  new MutationObserver(drawAll).observe(root, {attributes: true, attributeFilter: ['data-theme']});
+  if (document.fonts) document.fonts.ready.then(drawAll);
+
+  // Highlight the module in view
+  const navLinks = [...document.querySelectorAll('.modnav a')];
+  const markModule = (id) => navLinks.forEach((a) => a.setAttribute('aria-current', String(a.getAttribute('href') === `#${id}`)));
+  markModule('m-overview');
+  const moduleWatch = new IntersectionObserver((entries) => {
+    for (const e of entries) if (e.isIntersecting) markModule(e.target.id);
+  }, {rootMargin: '-20% 0px -75% 0px'});
+  document.querySelectorAll('.module').forEach((m) => moduleWatch.observe(m));
 </script>
 </body>
 </html>
