@@ -1,0 +1,6 @@
+# Benchmark data, fetched by runner/fetch_data.py
+eval-cache/
+runner/.venv/
+runner/setups.conf
+runner/logs/
+__pycache__/

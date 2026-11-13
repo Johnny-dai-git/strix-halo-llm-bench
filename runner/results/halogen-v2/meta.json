@@ -1,0 +1,16 @@
+{
+  "name": "halogen-v2",
+  "base_url": "http://127.0.0.1:8731/v1",
+  "model": "halogen-qwen3.8-flash-next",
+  "thinking": "off",
+  "max_tokens": {
+    "humaneval": 1024,
+    "ifeval": 1280,
+    "gsm8k": 1024,
+    "mmlu_pro": 2048
+  },
+  "mmlu_pro_sample": 1000,
+  "mmlu_pro_seed": 1234,
+  "limit": 0,
+  "started": "2026-10-29 23:53:23"
+}

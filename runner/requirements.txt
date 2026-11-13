@@ -1,0 +1,8 @@
+# Versions the published results were run with.
+pyarrow==26.0.0
+langdetect==1.0.9
+nltk==3.10.4
+immutabledict==4.3.1
+# Only lm_eval's IFEval checker is used. Install it without its dependencies
+# (torch, datasets, ...), which run_evals.py never imports:
+#   pip install --no-deps lm_eval==0.4.13

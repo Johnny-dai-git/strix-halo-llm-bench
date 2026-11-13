@@ -25,6 +25,8 @@
 
 另一份报告：[Halogen 内存压缩测试](https://johnny-dai-git.github.io/qwen38-flash-next-evals/memory.html)（2026-10-29）。三个内存参数把 Halogen 从 89.0 GiB 降到 74.2 GiB，速度几乎不变；同页还有和 Strata 的对比。原始 CSV 在 [`data/memory-compression/`](data/memory-compression/)。
 
+**复现**：评测代码、每一条原始回答和数据下载脚本都在 [`runner/`](runner/)。不需要推理服务器也能用 `rescore.py` 重新打分核对。
+
 ## English
 
 Speed, memory, perplexity and accuracy of Qwen3.8-Flash-Next across three local inference engines (Halogen, Gufo, Strata) on one AMD Ryzen AI Max+ 395 (Strix Halo, 128 GB). The page is the full report; the table below lists accuracy only (thinking off, temperature 0).
@@ -45,3 +47,5 @@ Speed and memory in short: Halogen v2 decodes at 66.7 tok/s and leaves 40.1 GiB 
 The page has speed, memory, perplexity, the full method and breakdowns. Raw summary data: [`data/summary.json`](data/summary.json).
 
 A second report: [Halogen memory compression test](https://johnny-dai-git.github.io/qwen38-flash-next-evals/memory.html) (2026-10-29). Three memory parameters take Halogen from 89.0 GiB to 74.2 GiB at almost the same speed; the page also compares Halogen with Strata. Raw CSVs are in [`data/memory-compression/`](data/memory-compression/).
+
+**Reproduce**: the eval harness, every saved reply and a data fetcher are in [`runner/`](runner/). `rescore.py` re-scores the published replies without an inference server.
