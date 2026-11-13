@@ -1,0 +1,3 @@
+engine,gtt_gib,engine_total_gib,free_gib,memavailable_min_gib,swap_gib,load_s,avg_w,peak_w,max_temp_c
+Strata,36.1,112.4,6.0,1.1,4.5,62,82,99,84
+Halogen（压缩）,12.6,74.2,40.1,101.1,0,29,84,98,82

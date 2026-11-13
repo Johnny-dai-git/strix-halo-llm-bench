@@ -21,6 +21,8 @@
 
 速度、内存、PPL、完整方法和细分数据见网页。原始汇总数据在 [`data/summary.json`](data/summary.json)。
 
+另一份报告：[Halogen 内存压缩测试](https://johnny-dai-git.github.io/qwen38-flash-next-evals/memory.html)（2026-10-29）。三个内存参数把 Halogen 从 89.0 GiB 降到 74.2 GiB，速度几乎不变；同页还有和 Strata 的对比。原始 CSV 在 [`data/memory-compression/`](data/memory-compression/)。
+
 ## English
 
 Speed, memory, perplexity and accuracy of Qwen3.8-Flash-Next across three local inference engines (Halogen, Gufo, Strata) on one AMD Ryzen AI Max+ 395 (Strix Halo, 128 GB). The page is the full report; the table below lists accuracy only (thinking off, temperature 0).
@@ -39,3 +41,5 @@ Speed and memory in short: Halogen v2 decodes at 66.7 tok/s and leaves 40.1 GiB 
 - Halogen's GSM8K default is low because its answer guard won't let a reply end on the `#### <number>` line. With `HALOGEN_ANSWER_GUARD=0` it scores 96.1%. Reported as [peonist-ai/halogen-flash-server#259](https://github.com/peonist-ai/halogen-flash-server/issues/259).
 
 The page has speed, memory, perplexity, the full method and breakdowns. Raw summary data: [`data/summary.json`](data/summary.json).
+
+A second report: [Halogen memory compression test](https://johnny-dai-git.github.io/qwen38-flash-next-evals/memory.html) (2026-10-29). Three memory parameters take Halogen from 89.0 GiB to 74.2 GiB at almost the same speed; the page also compares Halogen with Strata. Raw CSVs are in [`data/memory-compression/`](data/memory-compression/).

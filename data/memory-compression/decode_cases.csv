@@ -1,0 +1,21 @@
+config,case,label,tok_s
+默认,code_a,写代码 A,81.51
+默认,code_b,写代码 B,72.50
+默认,proof_a,证明 A,76.01
+默认,proof_b,证明 B,72.57
+默认,proc_a,步骤说明 A,74.65
+默认,proc_b,步骤说明 B,60.48
+默认,chat_a,聊天 A,58.53
+默认,chat_b,聊天 B,58.74
+默认,prose_a,散文 A,56.01
+默认,prose_b,散文 B,58.88
+压缩,code_a,写代码 A,77.77
+压缩,code_b,写代码 B,72.52
+压缩,proof_a,证明 A,78.61
+压缩,proof_b,证明 B,74.40
+压缩,proc_a,步骤说明 A,74.34
+压缩,proc_b,步骤说明 B,59.72
+压缩,chat_a,聊天 A,59.21
+压缩,chat_b,聊天 B,60.11
+压缩,prose_a,散文 A,54.30
+压缩,prose_b,散文 B,55.69

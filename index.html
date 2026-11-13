@@ -148,6 +148,7 @@
       <p class="lede en">Three engines, two 4-bit weight sets, four setups, one machine, identical requests. Halogen on its own v2 weights is the fastest and leanest; the UD-Q4_K_XL weights Strata uses score about 2% lower perplexity; on those same UD-Q4_K_XL weights, Gufo and Halogen run at similar speed, both well ahead of Strata. On accuracy, Halogen v2 and Gufo + UD tie on all four tasks. Halogen v2 trails by about 8 points on GSM8K by default because Halogen won't let a reply end on a Markdown heading line; with that setting off it is 96.1% vs 96.0%.</p>
       <p class="meta">Halogen 0.18.18 · Gufo 0.27.0 (de15fdb) · Strata 0.2.7 / engine 0.1.52 hip-halo · Unsloth UD-Q4_K_XL @ 38bb39e</p>
       <p class="meta"><span class="zh">准确率评测 · 完成于 2026-11-12</span><span class="en">Accuracy evals · finished 2026-11-12</span></p>
+      <p class="meta"><a href="memory.html"><span class="zh">另见：Halogen 内存压缩测试（2026-10-29）→</span><span class="en">See also: Halogen memory compression test (2026-10-29) →</span></a></p>
     </div>
     <div class="lang" role="group" aria-label="Language / 语言">
       <button type="button" id="lang-zh" data-lang="zh" aria-pressed="true">中文</button>
@@ -232,7 +233,7 @@
           <tr><td><span class="zh">权重</span><span class="en">Weights</span></td><td><span class="zh">Halogen v2，约 4.16 bit</span><span class="en">Halogen v2, ~4.16 bpw</span></td><td colspan="3"><span class="zh">Unsloth UD-Q4_K_XL GGUF（同一份文件，111.3 GB）</span><span class="en">Unsloth UD-Q4_K_XL GGUF (the same file, 111.3 GB)</span></td></tr>
           <tr><td><span class="zh">MTP 草稿层</span><span class="en">MTP draft head</span></td><td><span class="zh">权重内置</span><span class="en">built in</span></td><td><span class="zh">Halogen 自己的头文件</span><span class="en">Halogen's own head file</span></td><td>shared-Q8_0 GGUF</td><td><span class="zh">Strata 转换的版本</span><span class="en">Strata's converted head</span></td></tr>
           <tr><td><span class="zh">上下文 / 对话缓存</span><span class="en">Context / KV cache</span></td><td>262,144 / int8</td><td>262,144 / int8</td><td><span class="zh">262,144 / 默认</span><span class="en">262,144 / default</span></td><td>262,144 / int8</td></tr>
-          <tr><td><span class="zh">其他设置</span><span class="en">Other settings</span></td><td><span class="zh">之前测过的压缩设置</span><span class="en">Compressed settings from earlier</span></td><td><span class="zh">同左</span><span class="en">Same</span></td><td><span class="zh">1 个会话，其余默认</span><span class="en">1 session, otherwise defaults</span></td><td><span class="zh">安装程序默认值</span><span class="en">Installer defaults</span></td></tr>
+          <tr><td><span class="zh">其他设置</span><span class="en">Other settings</span></td><td><a href="memory.html"><span class="zh">之前测过的压缩设置</span><span class="en">Compressed settings from earlier</span></a></td><td><span class="zh">同左</span><span class="en">Same</span></td><td><span class="zh">1 个会话，其余默认</span><span class="en">1 session, otherwise defaults</span></td><td><span class="zh">安装程序默认值</span><span class="en">Installer defaults</span></td></tr>
         </tbody>
       </table>
     </div>

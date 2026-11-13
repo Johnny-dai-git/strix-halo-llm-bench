@@ -1,0 +1,3 @@
+config,total_gib,gtt_idle_gib,gtt_peak_gib,left_gib,memavailable_min_gib,api_rss_gib
+默认,89.0,27.3,27.5,25.3,82.8,1.5
+压缩,74.2,12.5,12.6,40.1,98.7,1.5

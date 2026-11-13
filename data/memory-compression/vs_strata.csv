@@ -1,0 +1,11 @@
+test,group,label,strata,halogen
+decode,同一脚本,生成速度（3 个短提示平均）,34.0,66.7
+pp8192,同一脚本,读提示 8K,445.5,1742.0
+pp32768,同一脚本,读提示 32K,479.0,1788.0
+pp131072,同一脚本,读提示 131K,373.2,1688.2
+long30k,同一脚本,读 3 万 token 长提示,479.0,1814.3
+std_short_decode,Strata 标准测试,短提示 生成,34.8,56.5
+std_4k_prompt,Strata 标准测试,4K 提示 读提示,391.1,1729.9
+std_4k_decode,Strata 标准测试,4K 提示 生成,29.8,62.2
+std_16k_prompt,Strata 标准测试,16K 提示 读提示,476.3,1847.1
+std_16k_decode,Strata 标准测试,16K 提示 生成,30.2,62.4

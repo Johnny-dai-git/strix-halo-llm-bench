@@ -1,0 +1,707 @@
+<!doctype html>
+<html lang="zh-CN" data-lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Halogen Memory Compression Test</title>
+<meta name="description" content="Halogen memory compression on a Ryzen AI Max+ 395 (128 GB): 14.8 GiB saved at almost the same speed, and Halogen vs Strata on the same model. 中文 / English.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;700&display=swap">
+<style>
+  /* Layout: five modules under a sticky nav; each section in a module pairs a chart with its numbers.
+     Four setups: Halogen v2 = lamp amber, Halogen on the GGUF = pale amber, Gufo = owl teal, Strata = rock slate. */
+  :root {
+    --bg: #f6f7f9;
+    --panel: #ffffff;
+    --fg: #1b1e24;
+    --muted: #5d6470;
+    --line: #dfe2e8;
+    --grid: #eceef2;
+    --hv2: #b8690a;
+    --hud: #e0a35a;
+    --gufo: #2d7f74;
+    --hfix: #6f3f05;
+    --strata: #5a6b85;
+    --good: #2d7f74;
+    --warn: #a3401c;
+    --f-display: "Archivo", "Noto Sans SC", "Helvetica Neue", Arial, sans-serif;
+    --f-body: "IBM Plex Sans", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+    --s-xs: .78rem; --s-sm: .875rem; --s-md: 1rem; --s-lg: 1.25rem; --s-xl: 1.75rem; --s-xxl: clamp(2rem, 5vw, 3rem);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #13161b; --panel: #1b1f26; --fg: #e8eaee; --muted: #9aa2ae; --line: #2c323c; --grid: #242932;
+      --hv2: #f0a23a; --hud: #a8773a; --hfix: #ffd08a; --gufo: #5fbfb1; --strata: #93a6c4; --good: #5fbfb1; --warn: #f08a62;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #13161b; --panel: #1b1f26; --fg: #e8eaee; --muted: #9aa2ae; --line: #2c323c; --grid: #242932;
+    --hv2: #f0a23a; --hud: #a8773a; --hfix: #ffd08a; --gufo: #5fbfb1; --strata: #93a6c4; --good: #5fbfb1; --warn: #f08a62;
+    color-scheme: dark;
+  }
+
+  body { background: var(--bg); color: var(--fg); font-family: var(--f-body); font-size: var(--s-md); line-height: 1.6; }
+  .page { max-width: 66rem; margin: 0 auto; padding-block: 2rem 4rem; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 3.5rem; }
+
+  /* Language: zh, en, or both (English shown under Chinese) */
+  :root[data-lang="zh"] .en, :root[data-lang="en"] .zh { display: none; }
+  :root[data-lang="both"] .en { color: var(--muted); }
+  :root[data-lang="both"] p.en, :root[data-lang="both"] li .en, :root[data-lang="both"] .note.en { font-size: .92em; }
+  :root[data-lang="both"] h1 .en, :root[data-lang="both"] h2 .en, :root[data-lang="both"] h3 .en, :root[data-lang="both"] h4 .en { display: block; font-size: .6em; font-weight: 500; letter-spacing: 0; margin-top: .2em; }
+  :root[data-lang="both"] th .en, :root[data-lang="both"] .tile .lbl .en { display: block; }
+  :root[data-lang="both"] td .en { display: block; font-size: .88em; }
+  :root[data-lang="both"] li .en { display: block; margin-top: .2em; }
+
+  header.top { display: flex; flex-wrap: wrap; gap: 1rem 2rem; align-items: flex-start; justify-content: space-between; }
+  .eyebrow { font-family: var(--f-mono); font-size: var(--s-xs); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 .5rem; }
+  h1 { font-family: var(--f-display); font-weight: 700; font-size: var(--s-xxl); line-height: 1.1; margin: 0; text-wrap: balance; letter-spacing: -.01em; }
+  h1 .vs { color: var(--muted); font-weight: 500; }
+  h1 .h { color: var(--hv2); }
+  h1 .g { color: var(--gufo); }
+  h1 .s { color: var(--strata); }
+  .lede { max-width: 64ch; margin: .75rem 0 0; font-size: var(--s-lg); line-height: 1.5; }
+  .lede.en { font-size: var(--s-md); }
+  .meta { font-family: var(--f-mono); font-size: var(--s-xs); color: var(--muted); margin: .75rem 0 0; }
+
+  .lang { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 3px; background: var(--panel); flex: none; }
+  .lang button { font: 500 var(--s-sm)/1 var(--f-body); color: var(--muted); background: none; border: 0; border-radius: 999px; padding: .5rem .85rem; cursor: pointer; }
+  .lang button[aria-pressed="true"] { background: var(--fg); color: var(--bg); }
+  .lang button:focus-visible { outline: 2px solid var(--hv2); outline-offset: 2px; }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); gap: 1rem; }
+  .tile { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 1rem 1.1rem; display: grid; gap: .25rem; align-content: start; }
+  .tile .big { font-family: var(--f-display); font-weight: 700; font-size: var(--s-xl); font-variant-numeric: tabular-nums; line-height: 1.2; }
+  .tile .lbl { font-size: var(--s-sm); font-weight: 600; }
+  .tile .sub { font-size: var(--s-xs); color: var(--muted); font-variant-numeric: tabular-nums; }
+  .c-hv2 { color: var(--hv2); } .c-hud { color: var(--hud); } .c-gufo { color: var(--gufo); } .c-strata { color: var(--strata); } .c-hfix { color: var(--hfix); }
+
+  section { display: grid; gap: 1rem; min-width: 0; }
+  .modnav { scrollbar-width: none; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; display: flex; gap: .35rem; overflow-x: auto; padding-block: .6rem; background: var(--bg); border-bottom: 1px solid var(--line); }
+  .modnav a { flex: none; font-size: var(--s-sm); font-weight: 500; color: var(--muted); text-decoration: none; padding: .4rem .75rem; border-radius: 999px; white-space: nowrap; }
+  .modnav a:hover { color: var(--fg); background: var(--grid); }
+  .modnav a[aria-current="true"] { background: var(--fg); color: var(--bg); }
+  .modnav a:focus-visible { outline: 2px solid var(--hv2); outline-offset: 2px; }
+  body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+  .module { display: grid; gap: 2rem; min-width: 0; scroll-margin-top: 4.5rem; }
+  .mhead { display: grid; gap: .35rem; }
+  h2 { font-family: var(--f-display); font-weight: 700; font-size: var(--s-xxl); line-height: 1.15; margin: 0; text-wrap: balance; letter-spacing: -.01em; }
+  h3.sec { font-family: var(--f-display); font-weight: 700; font-size: var(--s-lg); line-height: 1.25; margin: 0; text-wrap: balance; }
+  h4 { font-family: var(--f-body); font-weight: 600; font-size: var(--s-md); margin: 0; }
+  p { margin: 0; max-width: 70ch; }
+  .note { font-size: var(--s-sm); color: var(--muted); }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 28rem), 1fr)); gap: 1rem; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 1.1rem 1.2rem; display: grid; gap: .75rem; min-width: 0; align-content: start; }
+
+  .key { display: flex; flex-wrap: wrap; gap: .4rem 1rem; font-size: var(--s-xs); color: var(--muted); }
+  .key i { display: inline-block; width: .7rem; height: .7rem; border-radius: 2px; margin-right: .35rem; vertical-align: -1px; }
+  .k-hv2 { background: var(--hv2); } .k-hud { background: var(--hud); } .k-gufo { background: var(--gufo); } .k-strata { background: var(--strata); } .k-hfix { background: var(--hfix); }
+
+  .figs { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr)); gap: 1rem; }
+  .figs3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); gap: 1rem; }
+  figure.fig { margin: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 1rem 1.1rem; display: grid; gap: .6rem; min-width: 0; align-content: start; }
+  figcaption { font-size: var(--s-sm); color: var(--muted); line-height: 1.5; }
+  figcaption b { color: var(--fg); font-weight: 600; }
+  :root[data-lang="both"] figcaption > .en { display: block; margin-top: .2em; }
+  details.data { font-size: var(--s-sm); display: block; }
+  details.data > summary { cursor: pointer; color: var(--muted); font-weight: 500; padding-block: .3rem; }
+  details.data > summary:hover { color: var(--fg); }
+  details.data[open] > summary { margin-bottom: .5rem; }
+  details.data .wrap + .wrap { margin-top: 1rem; }
+  .k-partial { background: transparent; border: 1px dashed var(--muted); box-sizing: border-box; }
+  .chart { width: 100%; min-height: 120px; }
+  .chart svg { display: block; width: 100%; height: auto; }
+  .chart text { font-family: var(--f-body); }
+  .chart .num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+
+  .wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: var(--s-sm); font-variant-numeric: tabular-nums; }
+  th, td { padding: .5rem .6rem; border-bottom: 1px solid var(--line); text-align: right; vertical-align: top; }
+  th { font-weight: 500; font-size: var(--s-xs); color: var(--muted); white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  td.n { font-family: var(--f-mono); white-space: nowrap; }
+  td.best { font-weight: 600; color: var(--fg); background: color-mix(in srgb, var(--good) 12%, transparent); }
+  tr.avg td { font-weight: 600; border-top: 1px solid var(--muted); }
+  th .sw { display: inline-block; width: .55rem; height: .55rem; border-radius: 2px; margin-right: .3rem; vertical-align: 0; }
+
+  ul.points { margin: 0; padding-left: 1.2rem; display: grid; gap: .6rem; max-width: 72ch; }
+  ul.points li::marker { color: var(--muted); }
+  .flag { color: var(--warn); font-weight: 600; }
+  code { font-family: var(--f-mono); font-size: .9em; background: var(--grid); padding: .05em .35em; border-radius: 4px; }
+</style>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; }
+  footer.foot { border-top: 1px solid var(--line); padding-top: 1rem; font-size: var(--s-sm); color: var(--muted); display: grid; gap: .35rem; }
+  footer.foot a, .page a { color: var(--fg); }
+</style>
+<style>
+  tbody.left td { text-align: left; }
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="top">
+    <div>
+      <p class="eyebrow">Qwen3.8-Flash-Next · Halogen 0.18.18 · Ryzen AI Max+ 395 · 128 GB · 2026-10-29</p>
+      <h1><span class="h">Halogen</span> <span class="vs"><span class="zh">内存压缩测试</span><span class="en">memory compression test</span></span></h1>
+      <p class="lede zh">压缩设置把 Halogen 的内存占用从 <b>89.0 GiB 降到 74.2 GiB（省 14.8 GiB，约 17%）</b>，留给其他软件的内存从 25.3 GiB 增到 40.1 GiB。代价很小：生成速度慢 0.5%，读提示速度最多慢 1.8%（131K 长度）。两种设置下，内存都在启动时一次分配好，读 3 万 token 长提示时峰值不再上涨。服务器现在已按压缩设置运行。</p>
+      <p class="lede en">The compressed settings cut Halogen's memory use from <b>89.0 GiB to 74.2 GiB (14.8 GiB saved, about 17%)</b>, raising the memory left for other software from 25.3 GiB to 40.1 GiB. The cost is small: decode is 0.5% slower and prompt reading at most 1.8% slower (at 131K). With either setting, memory is allocated once at start and does not rise while reading a 30K-token prompt. The server now runs with the compressed settings.</p>
+      <p class="lede zh">和 Strata 跑同一个模型对比：Halogen 读提示快约 <b>4 倍</b>、生成快约 <b>2 倍</b>，功耗相同，内存少占约 38 GiB。Strata 在这台机器上几乎占满内存。</p>
+      <p class="lede en">Against Strata running the same model, Halogen reads prompts about <b>4×</b> faster and decodes about <b>2×</b> faster at the same power, using about 38 GiB less memory. Strata nearly fills this machine's memory.</p>
+      <p class="meta"><span class="zh">压缩设置：</span><span class="en">Compressed settings: </span><code>HALOGEN_KV8=1</code> · <code>HALOGEN_KV_POOL_POSITIONS=262144</code> · <code>HALOGEN_MAX_TOK=16384</code></p>
+      <p class="meta"><a href="./"><span class="zh">← 返回 Halogen vs Gufo vs Strata 完整报告</span><span class="en">← Back to the full Halogen vs Gufo vs Strata report</span></a></p>
+    </div>
+    <div class="lang" role="group" aria-label="Language / 语言">
+      <button type="button" data-lang="zh" aria-pressed="true">中文</button>
+      <button type="button" data-lang="en" aria-pressed="false">English</button>
+      <button type="button" data-lang="both" aria-pressed="false">中 / EN</button>
+    </div>
+  </header>
+
+  <nav class="modnav" aria-label="模块 / Modules">
+    <a href="#m-overview"><span class="zh">概览</span><span class="en">Overview</span></a>
+    <a href="#m-memory"><span class="zh">内存</span><span class="en">Memory</span></a>
+    <a href="#m-speed"><span class="zh">速度</span><span class="en">Speed</span></a>
+    <a href="#m-power"><span class="zh">功耗与温度</span><span class="en">Power</span></a>
+    <a href="#m-strata"><span class="zh">与 Strata 对比</span><span class="en">vs Strata</span></a>
+    <a href="#m-advice"><span class="zh">建议</span><span class="en">Advice</span></a>
+    <a href="#m-method"><span class="zh">测试方法</span><span class="en">Method</span></a>
+  </nav>
+
+  <div class="module" id="m-overview">
+    <div class="mhead">
+      <h2><span class="zh">概览</span><span class="en">Overview</span></h2>
+      <p class="zh">两种设置跑同一个模型、同一台机器，只改了 Halogen 的三个内存参数。</p>
+      <p class="en">Both settings run the same model on the same machine; only three Halogen memory parameters change.</p>
+    </div>
+    <div class="tiles">
+      <div class="tile"><span class="lbl"><span class="zh">Halogen 内存合计（压缩）</span><span class="en">Halogen memory total (compressed)</span></span><span class="big c-hv2">74.2 GiB</span><span class="sub"><span class="zh">默认 89.0 GiB</span><span class="en">Default 89.0 GiB</span></span></div>
+      <div class="tile"><span class="lbl"><span class="zh">留给其他软件（压缩）</span><span class="en">Left for other software (compressed)</span></span><span class="big c-hv2">40.1 GiB</span><span class="sub"><span class="zh">默认 25.3 GiB</span><span class="en">Default 25.3 GiB</span></span></div>
+      <div class="tile"><span class="lbl"><span class="zh">显卡 GTT 峰值（压缩）</span><span class="en">GPU GTT peak (compressed)</span></span><span class="big c-hv2">12.6 GiB</span><span class="sub"><span class="zh">默认 27.5 GiB</span><span class="en">Default 27.5 GiB</span></span></div>
+      <div class="tile"><span class="lbl"><span class="zh">生成速度，10 种提示平均（压缩）</span><span class="en">Decode, 10-prompt average (compressed)</span></span><span class="big c-hv2">66.67 tok/s</span><span class="sub"><span class="zh">默认 66.99 · 官方 66.58</span><span class="en">Default 66.99 · published 66.58</span></span></div>
+    </div>
+    <section id="setup">
+      <h3 class="sec"><span class="zh">测试环境与设置</span><span class="en">Environment and settings</span></h3>
+      <div class="wrap"><table>
+        <thead><tr><th><span class="zh">项目</span><span class="en">Item</span></th><th><span class="zh">内容</span><span class="en">Details</span></th></tr></thead>
+        <tbody class="left">
+          <tr><td><span class="zh">机器</span><span class="en">Machine</span></td><td><span class="zh">GMKtec EVO-X3，AMD Ryzen AI Max+ 395（Strix Halo，gfx1151），128 GB 统一内存</span><span class="en">GMKtec EVO-X3, AMD Ryzen AI Max+ 395 (Strix Halo, gfx1151), 128 GB unified memory</span></td></tr>
+          <tr><td><span class="zh">BIOS 显存划分</span><span class="en">BIOS VRAM carve-out</span></td><td><span class="zh">最小（1 GB）</span><span class="en">Minimum (1 GB)</span></td></tr>
+          <tr><td><span class="zh">显卡可用内存（GTT）</span><span class="en">GPU-usable memory (GTT)</span></td><td>112 GiB (<code>ttm.pages_limit=29360128</code>)</td></tr>
+          <tr><td><span class="zh">系统</span><span class="en">OS</span></td><td><span class="zh">Ubuntu 26.04.1，内核 7.0.0-30</span><span class="en">Ubuntu 26.04.1, kernel 7.0.0-30</span></td></tr>
+          <tr><td><span class="zh">推理引擎</span><span class="en">Inference engine</span></td><td>Halogen 0.18.18 (<code>ghcr.io/peonist-ai/halogen-flash-server:0.18.18</code>, Podman 5.7.0)</td></tr>
+          <tr><td><span class="zh">模型</span><span class="en">Model</span></td><td><span class="zh">Qwen3.8-Flash-Next，v2 权重（62.1 GiB）+ n-gram 查找表（47.7 GiB，放硬盘）</span><span class="en">Qwen3.8-Flash-Next, v2 weights (62.1 GiB) + n-gram lookup table (47.7 GiB, on disk)</span></td></tr>
+          <tr><td><span class="zh">电源模式</span><span class="en">Power profile</span></td><td><span class="zh">平衡（之前测过：性能模式结果相同）</span><span class="en">Balanced (tested earlier: performance mode gives the same results)</span></td></tr>
+        </tbody>
+      </table></div>
+      <div class="wrap"><table>
+        <thead><tr><th><span class="zh">参数</span><span class="en">Parameter</span></th><th><span class="zh">默认</span><span class="en">Default</span></th><th><span class="zh">压缩</span><span class="en">Compressed</span></th><th><span class="zh">作用</span><span class="en">Effect</span></th></tr></thead>
+        <tbody>
+          <tr><td><code>HALOGEN_KV8</code></td><td><span class="zh">关（16 位）</span><span class="en">off (16-bit)</span></td><td><span class="zh">1（8 位）</span><span class="en">1 (8-bit)</span></td><td><span class="zh">对话缓存用 8 位存</span><span class="en">Stores the KV cache in 8 bits</span></td></tr>
+          <tr><td><code>HALOGEN_KV_POOL_POSITIONS</code></td><td class="n">524,288</td><td class="n">262,144</td><td><span class="zh">对话缓存池大小减半</span><span class="en">Halves the KV pool</span></td></tr>
+          <tr><td><code>HALOGEN_MAX_TOK</code></td><td class="n">32,768</td><td class="n">16,384</td><td><span class="zh">读提示的工作区减半</span><span class="en">Halves the prompt-processing workspace</span></td></tr>
+          <tr><td><span class="zh">单个对话最长上下文</span><span class="en">Max context per conversation</span></td><td class="n">262,144</td><td class="n">262,144</td><td><span class="zh">不变</span><span class="en">Unchanged</span></td></tr>
+        </tbody>
+      </table></div>
+    </section>
+  </div>
+
+  <div class="module" id="m-memory">
+    <div class="mhead">
+      <h2><span class="zh">内存占用</span><span class="en">Memory use</span></h2>
+      <p class="zh">省下的 14.8 GiB 全部来自显卡侧：对话缓存池少 10.3 GiB，工作区少 4.5 GiB；62.1 GiB 模型权重不变。</p>
+      <p class="en">All 14.8 GiB saved comes from the GPU side: 10.3 GiB less KV pool and 4.5 GiB less workspace; the 62.1 GiB of weights are unchanged.</p>
+    </div>
+    <div class="figs">
+      <figure class="fig"><div class="chart" id="f-mem"></div><figcaption><b><span class="zh">图 1.</span><span class="en">Fig. 1.</span></b> <span class="zh">Halogen 启动时一次分配好的内存（GiB），虚线为 122 GiB 系统内存。模型权重两种设置相同。</span><span class="en">Memory Halogen allocates once at start (GiB); the dashed line is the 122 GiB of system RAM. Weights are the same in both settings.</span></figcaption></figure>
+      <figure class="fig"><div class="key"><span><i class="k-hud"></i><span class="zh">默认</span><span class="en">Default</span></span><span><i class="k-hv2"></i><span class="zh">压缩</span><span class="en">Compressed</span></span></div><div class="chart" id="f-gtt"></div><figcaption><b><span class="zh">图 2.</span><span class="en">Fig. 2.</span></b> <span class="zh">生成速度测试全程每秒采样的显卡 GTT。加载后立刻到顶，之后一直持平：峰值就是启动时分配的量。GTT 不含锁在内存里的模型权重。</span><span class="en">GPU GTT sampled every second through the decode benchmark. It tops out right after loading and stays flat: the peak is what was allocated at start. GTT excludes the weights pinned in RAM.</span></figcaption></figure>
+    </div>
+    <div class="wrap"><table>
+      <thead><tr><th><span class="zh">项目（GiB）</span><span class="en">Item (GiB)</span></th><th><span class="zh">默认</span><span class="en">Default</span></th><th><span class="zh">压缩</span><span class="en">Compressed</span></th><th><span class="zh">变化</span><span class="en">Change</span></th></tr></thead>
+      <tbody>
+        <tr><td><span class="zh">模型权重（锁定在内存）</span><span class="en">Weights (pinned in RAM)</span></td><td class="n">62.1</td><td class="n">62.1</td><td class="n">0</td></tr>
+        <tr><td><span class="zh">对话缓存池（KV）</span><span class="en">KV pool</span></td><td class="n">14.4</td><td class="n best">4.1</td><td class="n">−10.3</td></tr>
+        <tr><td><span class="zh">工作区</span><span class="en">Workspace</span></td><td class="n">12.5</td><td class="n best">8.0</td><td class="n">−4.5</td></tr>
+        <tr class="avg"><td><span class="zh">Halogen 合计</span><span class="en">Halogen total</span></td><td class="n">89.0</td><td class="n best">74.2</td><td class="n">−14.8</td></tr>
+        <tr><td><span class="zh">显卡驱动显示的占用（GTT），空闲</span><span class="en">GTT reported by the driver, idle</span></td><td class="n">27.3</td><td class="n">12.5</td><td class="n">−14.8</td></tr>
+        <tr><td><span class="zh">GTT 峰值（测速 + 读 3 万 token 长提示）</span><span class="en">GTT peak (benchmarks + 30K-token prompt)</span></td><td class="n">27.5</td><td class="n">12.6</td><td class="n">−14.9</td></tr>
+        <tr><td><span class="zh">API 服务程序（容器 RSS）</span><span class="en">API server (container RSS)</span></td><td class="n">1.5</td><td class="n">1.5</td><td class="n">0</td></tr>
+        <tr><td><span class="zh">留给其他软件（Halogen 自报）</span><span class="en">Left for other software (Halogen's own report)</span></td><td class="n">25.3</td><td class="n best">40.1</td><td class="n">+14.8</td></tr>
+        <tr><td><span class="zh">系统显示的可用内存（MemAvailable），运行中最低</span><span class="en">MemAvailable reported by the OS, lowest while running</span></td><td class="n">82.8</td><td class="n">98.7</td><td class="n">+15.9</td></tr>
+      </tbody>
+    </table></div>
+    <ul class="points">
+      <li><span class="zh"><b>峰值等于空闲值。</b>读 30,023 token 长提示时，每 0.5 秒采样一次，GTT 始终是 27.3 / 12.5 GiB，没有上涨。</span><span class="en"><b>Peak equals idle.</b> Sampled every 0.5 s while reading a 30,023-token prompt, GTT stayed at 27.3 / 12.5 GiB and never rose.</span></li>
+      <li><span class="zh"><b>系统显示的可用内存偏高。</b><code>free</code> 和系统监视器把 62.1 GiB 锁定的权重算成可释放的缓存，实际可用以 Halogen 自报的 25.3 / 40.1 GiB 为准。</span><span class="en"><b>The OS overstates available memory.</b> <code>free</code> and the system monitor count the 62.1 GiB of pinned weights as reclaimable cache; the real figure is Halogen's own 25.3 / 40.1 GiB.</span></li>
+      <li><span class="zh"><b>GTT 不含权重。</b>权重用另一种方式锁在内存里给显卡直接读，所以驱动只显示 27.3 / 12.5 GiB。</span><span class="en"><b>GTT excludes the weights.</b> They are pinned in RAM by another mechanism for the GPU to read directly, so the driver shows only 27.3 / 12.5 GiB.</span></li>
+      <li><span class="zh"><b>47.7 GiB 的 n-gram 查找表不常驻内存。</b>它按需从硬盘读到文件缓存，内存紧张时会被自动释放。</span><span class="en"><b>The 47.7 GiB n-gram lookup table isn't resident.</b> It is read from disk into the page cache on demand and released automatically under memory pressure.</span></li>
+      <li><span class="zh">BIOS 另划了 1 GiB 给显卡（用了 0.6–0.8 GiB，主要是桌面显示），不算在上表里。</span><span class="en">The BIOS reserves another 1 GiB for the GPU (0.6–0.8 GiB used, mostly by the desktop); it is not in the table.</span></li>
+    </ul>
+  </div>
+
+  <div class="module" id="m-speed">
+    <div class="mhead">
+      <h2><span class="zh">速度</span><span class="en">Speed</span></h2>
+      <p class="zh">压缩后速度变化都在 −3.6% 到 +0.7% 之间；两种设置都复现了 Halogen 官方数据。文档预计工作区减半会让读提示慢约 9%，实测只慢了 1.8–3.6%。</p>
+      <p class="en">Every speed change with compression falls between −3.6% and +0.7%, and both settings reproduce Halogen's published numbers. The docs expect halving the workspace to slow prompt reading by about 9%; measured, it is only 1.8–3.6%.</p>
+    </div>
+    <div class="wrap"><table>
+      <thead><tr><th><span class="zh">测试项（token/秒）</span><span class="en">Test (tok/s)</span></th><th><span class="zh">官方（0.18.18）</span><span class="en">Published (0.18.18)</span></th><th><span class="zh">默认</span><span class="en">Default</span></th><th><span class="zh">压缩</span><span class="en">Compressed</span></th><th><span class="zh">压缩 vs 默认</span><span class="en">Compressed vs default</span></th></tr></thead>
+      <tbody>
+        <tr><td><span class="zh">生成速度（10 种提示平均，MTP 推测解码）</span><span class="en">Decode (10-prompt average, MTP drafting)</span></td><td class="n">66.58</td><td class="n">66.99</td><td class="n">66.67</td><td class="n">−0.5%</td></tr>
+        <tr><td><span class="zh">生成速度 tg128（sweep）</span><span class="en">Decode tg128 (sweep)</span></td><td class="n">—</td><td class="n">68.42</td><td class="n">67.48</td><td class="n">−1.4%</td></tr>
+        <tr><td><span class="zh">读提示 8K（关闭缓存）</span><span class="en">Prompt 8K (cache off)</span></td><td class="n">1,876</td><td class="n">1,838</td><td class="n">1,850</td><td class="n">+0.7%</td></tr>
+        <tr><td><span class="zh">读提示 32K（关闭缓存）</span><span class="en">Prompt 32K (cache off)</span></td><td class="n">1,821</td><td class="n">1,837</td><td class="n">1,822</td><td class="n">−0.8%</td></tr>
+        <tr><td><span class="zh">读提示 131K（关闭缓存）</span><span class="en">Prompt 131K (cache off)</span></td><td class="n"><span class="zh">1,675（0.18.0）</span><span class="en">1,675 (0.18.0)</span></td><td class="n">1,784</td><td class="n">1,752</td><td class="n">−1.8%</td></tr>
+        <tr><td><span class="zh">读 30,023 token 长提示（服务器实际请求）</span><span class="en">30,023-token prompt (real server request)</span></td><td class="n">—</td><td class="n"><span class="zh">1,853（16.2 秒）</span><span class="en">1,853 (16.2 s)</span></td><td class="n"><span class="zh">1,787（16.8 秒）</span><span class="en">1,787 (16.8 s)</span></td><td class="n">−3.6%</td></tr>
+      </tbody>
+    </table></div>
+    <figure class="fig"><div class="key"><span><i class="k-hud"></i><span class="zh">默认</span><span class="en">Default</span></span><span><i class="k-hv2"></i><span class="zh">压缩</span><span class="en">Compressed</span></span></div><div class="chart" id="f-cases"></div><figcaption><b><span class="zh">图 3.</span><span class="en">Fig. 3.</span></b> <span class="zh">每种提示的生成速度（token/秒），开启 MTP 推测解码，每种 3 次取平均。内容越好预测越快：写代码最快，散文最慢。</span><span class="en">Decode speed per prompt (tok/s), MTP drafting on, average of 3 runs each. The more predictable the text, the faster: code is fastest, prose slowest.</span></figcaption></figure>
+    <ul class="points">
+      <li><span class="zh">生成速度随内容变化很大：写代码最快约 81 token/秒，写文章约 56 token/秒；不开推测解码时约 40 token/秒。</span><span class="en">Decode speed varies a lot with content: about 81 tok/s for code, about 56 tok/s for prose, and about 40 tok/s without speculative decoding.</span></li>
+      <li><span class="zh">131K 的官方数据来自更老的 0.18.0 版本，新版本未公布。</span><span class="en">The published 131K figure is from the older 0.18.0; newer releases haven't published one.</span></li>
+      <li><span class="zh">KV8 会让输出和 16 位缓存时略有不同；官方测得困惑度变化 −0.3% 到 +0.5%，长文找信息测试与 16 位相同。本次未自测质量。</span><span class="en">KV8 makes output differ slightly from a 16-bit cache; Halogen measured perplexity changes of −0.3% to +0.5% and identical long-context retrieval. Quality was not tested here.</span></li>
+    </ul>
+  </div>
+
+  <div class="module" id="m-power">
+    <div class="mhead">
+      <h2><span class="zh">功耗与温度</span><span class="en">Power and temperature</span></h2>
+      <p class="zh">压缩不影响功耗：两种设置下芯片负载时都稳定在约 84 W，与 Halogen 官方测试机的约 85 W 一致。</p>
+      <p class="en">Compression doesn't change power: under load the chip holds about 84 W with either setting, matching the roughly 85 W on Halogen's own test machine.</p>
+    </div>
+    <div class="wrap"><table>
+      <thead><tr><th><span class="zh">测试</span><span class="en">Test</span></th><th><span class="zh">设置</span><span class="en">Setting</span></th><th><span class="zh">平均功耗</span><span class="en">Average power</span></th><th><span class="zh">峰值功耗</span><span class="en">Peak power</span></th><th><span class="zh">最高 GPU 温度</span><span class="en">Max GPU temperature</span></th></tr></thead>
+      <tbody>
+        <tr><td><span class="zh">生成速度（bench）</span><span class="en">Decode (bench)</span></td><td><span class="zh">默认</span><span class="en">Default</span></td><td class="n">84 W</td><td class="n">97 W</td><td class="n">82 °C</td></tr>
+        <tr><td><span class="zh">生成速度（bench）</span><span class="en">Decode (bench)</span></td><td><span class="zh">压缩</span><span class="en">Compressed</span></td><td class="n">84 W</td><td class="n">97 W</td><td class="n">84 °C</td></tr>
+        <tr><td><span class="zh">读提示（sweep）</span><span class="en">Prompt (sweep)</span></td><td><span class="zh">默认</span><span class="en">Default</span></td><td class="n">83 W</td><td class="n">99 W</td><td class="n">83 °C</td></tr>
+        <tr><td><span class="zh">读提示（sweep）</span><span class="en">Prompt (sweep)</span></td><td><span class="zh">压缩</span><span class="en">Compressed</span></td><td class="n">84 W</td><td class="n">99 W</td><td class="n">84 °C</td></tr>
+      </tbody>
+    </table></div>
+    <p class="note zh">平均功耗只统计大于 30 W 的秒数，排除加载权重的时间。之前测过系统“性能”电源模式，功耗和速度与“平衡”相同。</p>
+    <p class="note en">Average power counts only seconds above 30 W, leaving out weight loading. The OS "performance" power profile was tested earlier and gave the same power and speed as "balanced".</p>
+  </div>
+
+  <div class="module" id="m-strata">
+    <div class="mhead">
+      <h2><span class="zh">与 Strata 对比</span><span class="en">Compared with Strata</span></h2>
+      <p class="zh">Strata 0.2.7（引擎 0.1.52，395 专用的 hip-halo 版本，官方标为实验性）跑同一个模型的 Unsloth UD-Q4_K_XL 量化：111.3 GB 权重加 5.2 GB MTP 草稿层。设置用安装程序选的默认值：262K 上下文、int8 对话缓存、MTP 草稿、关闭视觉。Halogen 用上面的压缩设置。两边用同一个脚本发完全相同的请求；Strata 自带的标准测试只接受 Strata 服务器，所以把它的 9 个性能请求原样重放给 Halogen。</p>
+      <p class="en">Strata 0.2.7 (engine 0.1.52, the 395-specific hip-halo build, marked experimental) runs the same model as the Unsloth UD-Q4_K_XL quant: 111.3 GB of weights plus a 5.2 GB MTP draft head, with the installer's defaults: 262K context, int8 KV cache, MTP drafting, vision off. Halogen uses the compressed settings above. One script sends identical requests to both; Strata's own standard benchmark only accepts a Strata server, so its 9 performance requests were replayed unchanged to Halogen.</p>
+    </div>
+    <figure class="fig"><div class="key"><span><i class="k-hv2"></i><span class="zh">同一脚本</span><span class="en">Same script</span></span><span><i class="k-hud"></i><span class="zh">Strata 标准测试</span><span class="en">Strata standard benchmark</span></span></div><div class="chart" id="f-ratio"></div><figcaption><b><span class="zh">图 4.</span><span class="en">Fig. 4.</span></b> <span class="zh">Halogen ÷ Strata 的速度倍数，虚线是一样快。</span><span class="en">Halogen ÷ Strata speed ratio; the dashed line is equal speed.</span></figcaption></figure>
+    <h3 class="sec"><span class="zh">同一脚本的结果</span><span class="en">Same-script results</span></h3>
+    <div class="wrap"><table>
+      <thead><tr><th><span class="zh">测试</span><span class="en">Test</span></th><th>Strata</th><th>Halogen</th><th><span class="zh">Halogen 快</span><span class="en">Halogen faster by</span></th></tr></thead>
+      <tbody>
+        <tr><td><span class="zh">生成速度（3 个短提示平均）</span><span class="en">Decode (3 short prompts, average)</span></td><td class="n">34.0 tok/s</td><td class="n best">66.7 tok/s</td><td class="n">2.0×</td></tr>
+        <tr><td><span class="zh">读提示 8K</span><span class="en">Prompt 8K</span></td><td class="n">446 tok/s</td><td class="n best">1,742 tok/s</td><td class="n">3.9×</td></tr>
+        <tr><td><span class="zh">读提示 32K</span><span class="en">Prompt 32K</span></td><td class="n">479 tok/s</td><td class="n best">1,788 tok/s</td><td class="n">3.7×</td></tr>
+        <tr><td><span class="zh">读提示 131K</span><span class="en">Prompt 131K</span></td><td class="n"><span class="zh">373 tok/s（第一次卡死）</span><span class="en">373 tok/s (stalled first time)</span></td><td class="n best">1,688 tok/s</td><td class="n">4.5×</td></tr>
+        <tr><td><span class="zh">3 万 token 长提示</span><span class="en">30K-token prompt</span></td><td class="n"><span class="zh">479 tok/s（62.7 秒）</span><span class="en">479 tok/s (62.7 s)</span></td><td class="n best"><span class="zh">1,814 tok/s（16.5 秒）</span><span class="en">1,814 tok/s (16.5 s)</span></td><td class="n">3.8×</td></tr>
+      </tbody>
+    </table></div>
+    <h3 class="sec"><span class="zh">Strata 标准测试（standard-v1，中位数，各 3 次）</span><span class="en">Strata standard benchmark (standard-v1, median of 3)</span></h3>
+    <div class="wrap"><table>
+      <thead><tr><th><span class="zh">场景</span><span class="en">Case</span></th><th><span class="zh">读提示 Strata</span><span class="en">Prompt, Strata</span></th><th><span class="zh">读提示 Halogen</span><span class="en">Prompt, Halogen</span></th><th><span class="zh">生成 Strata</span><span class="en">Decode, Strata</span></th><th><span class="zh">生成 Halogen</span><span class="en">Decode, Halogen</span></th></tr></thead>
+      <tbody>
+        <tr><td><span class="zh">短提示（约 80 token）</span><span class="en">Short (~80 tokens)</span></td><td class="n">—</td><td class="n">—</td><td class="n">34.8 tok/s</td><td class="n best">56.5 tok/s</td></tr>
+        <tr><td><span class="zh">4K 提示</span><span class="en">4K prompt</span></td><td class="n">391 tok/s</td><td class="n best">1,730 tok/s</td><td class="n">29.8 tok/s</td><td class="n best">62.2 tok/s</td></tr>
+        <tr><td><span class="zh">16K 提示</span><span class="en">16K prompt</span></td><td class="n">476 tok/s</td><td class="n best">1,847 tok/s</td><td class="n">30.2 tok/s</td><td class="n best">62.4 tok/s</td></tr>
+      </tbody>
+    </table></div>
+    <p class="note zh">这组请求开启思考、温度 1.0、上限 512 token。Strata 在 4K 和 16K 场景每次都写满 512 token，Halogen 大多提前写完，所以只比速度，不比总耗时。Strata 的 12 项正确性检查全部通过；它的判分程序不能用在 Halogen 上，回答质量没有比较。</p>
+    <p class="note en">These requests use thinking on, temperature 1.0 and a 512-token cap. Strata fills all 512 tokens in the 4K and 16K cases while Halogen mostly finishes early, so compare speed, not total time. Strata passed all 12 of its correctness checks; its grader can't run against Halogen, so answer quality wasn't compared.</p>
+    <h3 class="sec"><span class="zh">内存与功耗</span><span class="en">Memory and power</span></h3>
+    <div class="wrap"><table>
+      <thead><tr><th><span class="zh">项目</span><span class="en">Item</span></th><th>Strata</th><th><span class="zh">Halogen（压缩）</span><span class="en">Halogen (compressed)</span></th></tr></thead>
+      <tbody>
+        <tr><td><span class="zh">显卡内存（GTT）</span><span class="en">GPU memory (GTT)</span></td><td class="n">36.1 GiB</td><td class="n">12.6 GiB</td></tr>
+        <tr><td><span class="zh">引擎合计</span><span class="en">Engine total</span></td><td class="n"><span class="zh">约 112 GiB（进程常驻 76.3 + GTT 36.1）</span><span class="en">~112 GiB (resident 76.3 + GTT 36.1)</span></td><td class="n best">74.2 GiB</td></tr>
+        <tr><td><span class="zh">空闲时系统可用内存</span><span class="en">Free memory at idle</span></td><td class="n"><span class="zh">6.0 GiB，并有 4.5 GiB 换出到交换空间</span><span class="en">6.0 GiB, with 4.5 GiB swapped out</span></td><td class="n best"><span class="zh">留给其他软件 40.1 GiB</span><span class="en">40.1 GiB left for other software</span></td></tr>
+        <tr><td><span class="zh">测试中最低可用内存</span><span class="en">Lowest free memory during tests</span></td><td class="n">1.1 GiB</td><td class="n"><span class="zh">101.1 GiB（偏高，见上文）</span><span class="en">101.1 GiB (overstated, see above)</span></td></tr>
+        <tr><td><span class="zh">加载时间</span><span class="en">Load time</span></td><td class="n"><span class="zh">62 秒</span><span class="en">62 s</span></td><td class="n best"><span class="zh">29 秒</span><span class="en">29 s</span></td></tr>
+        <tr><td><span class="zh">平均功耗 / 峰值</span><span class="en">Average / peak power</span></td><td class="n">82 W / 99 W</td><td class="n">84 W / 98 W</td></tr>
+        <tr><td><span class="zh">最高温度</span><span class="en">Max temperature</span></td><td class="n">84 °C</td><td class="n">82 °C</td></tr>
+      </tbody>
+    </table></div>
+    <ul class="points">
+      <li><span class="zh"><b>速度差在权重放不下：</b>Strata 的权重有 111 GB，内存装不下。它把约 27 GiB 专家放在显卡缓存、41.7 GiB 锁在内存，其余每次从 SSD 读；读一个 32K 提示要从 SSD 读约 35 GB。Halogen 的权重只有 62.1 GiB，全部常驻内存。</span><span class="en"><b>The speed gap is weights that don't fit:</b> Strata's 111 GB of weights don't fit in memory. It keeps about 27 GiB of experts in a GPU cache, pins 41.7 GiB in RAM and reads the rest from the SSD each time; one 32K prompt reads about 35 GB from the SSD. Halogen's weights are only 62.1 GiB and stay resident.</span></li>
+      <li><span class="zh"><b>稳定性：</b>131K 提示第一次读到第 90,112 个 token 时，显卡 60 秒没有进展，Strata 自动停掉并重启引擎；重试成功。当时系统可用内存只有约 2 GiB。</span><span class="en"><b>Stability:</b> on the first 131K attempt the GPU made no progress for 60 s at token 90,112; Strata stopped and restarted its engine, and the retry succeeded. Free memory was about 2 GiB at the time.</span></li>
+      <li><span class="zh"><b>能耗：</b>两边功耗相同，Halogen 快 2–4 倍，所以每个 token 耗电只有 Strata 的约一半到四分之一。</span><span class="en"><b>Energy:</b> both draw the same power and Halogen is 2–4× faster, so it uses about a half to a quarter of Strata's energy per token.</span></li>
+      <li><span class="zh"><b>未测：</b>调小 Strata 的内存预算（<code>--resident-budget-gib</code>）来腾出内存，会更慢；两种量化的回答质量差别。</span><span class="en"><b>Not tested:</b> a smaller Strata memory budget (<code>--resident-budget-gib</code>) to free memory, which would be slower; answer-quality differences between the two quants.</span></li>
+    </ul>
+  </div>
+
+  <div class="module" id="m-advice">
+    <div class="mhead">
+      <h2><span class="zh">建议</span><span class="en">Advice</span></h2>
+      <p class="zh">日常使用压缩设置：多出 14.8 GiB 空闲内存，速度几乎不变。</p>
+      <p class="en">Use the compressed settings day to day: 14.8 GiB more free memory at almost the same speed.</p>
+      <p class="zh">在这台机器上跑这个模型选 Halogen：比 Strata 快 2–4 倍，还留出约 40 GiB 内存给其他软件。Strata 运行时几乎占满内存，其他程序会被挤进交换空间。</p>
+      <p class="en">For this model on this machine, pick Halogen: 2–4× faster than Strata with about 40 GiB left for other software. Strata nearly fills memory and pushes other programs into swap.</p>
+    </div>
+    <ul class="points">
+      <li><span class="zh"><b>压缩的取舍：</b>缓存池减半后，同一时间只能保留一个 26 万 token 的超长对话；普通长度的多个对话不受影响。</span><span class="en"><b>The trade-off:</b> with the pool halved, only one 260K-token conversation fits at a time; several normal-length conversations are unaffected.</span></li>
+      <li><span class="zh"><b>换回默认设置的情况：</b>需要同时保留多个超长对话，或要求输出与 16 位缓存逐字一致。</span><span class="en"><b>When to switch back to default:</b> you need several very long conversations at once, or output identical word for word to a 16-bit cache.</span></li>
+      <li><span class="zh"><b>还能再省（未测）：</b>换 ht43 权重可再省约 8.4 GiB（需下载约 58 GB，质量损失未公布）；上下文减半到 131K 可再省约 2 GiB。</span><span class="en"><b>More savings (untested):</b> the ht43 weights would save about 8.4 GiB more (a ~58 GB download, quality loss unpublished); halving context to 131K saves about 2 GiB more.</span></li>
+    </ul>
+    <p class="note zh">后来的 <a href="./">Halogen vs Gufo vs Strata 完整报告</a>里，Halogen 的速度和内存测试用的就是这套压缩设置。</p>
+    <p class="note en">The speed and memory tests for Halogen in the later <a href="./">Halogen vs Gufo vs Strata report</a> use these compressed settings.</p>
+  </div>
+
+  <div class="module" id="m-method">
+    <div class="mhead">
+      <h2><span class="zh">测试方法与来源</span><span class="en">Method and sources</span></h2>
+    </div>
+    <ol class="points">
+      <li><span class="zh">生成速度：Halogen 自带 <code>bench serial,mtp 256 low 3</code>（10 种提示 × 3 次，贪心解码）。</span><span class="en">Decode: Halogen's own <code>bench serial,mtp 256 low 3</code> (10 prompts × 3 runs, greedy).</span></li>
+      <li><span class="zh">读提示速度：<code>sweep -p 8192,32768,131072 -n 128</code>，<code>HALOGEN_PROMPT_CACHE=0</code> 关闭提示缓存。</span><span class="en">Prompt speed: <code>sweep -p 8192,32768,131072 -n 128</code>, with <code>HALOGEN_PROMPT_CACHE=0</code> to turn off the prompt cache.</span></li>
+      <li><span class="zh">内存：启动一个独立服务器，记录 Halogen 自报的内存明细、显卡 GTT/VRAM 和 <code>/proc/meminfo</code>；再发一个 30,023 token 的长提示，每 0.5 秒采样。</span><span class="en">Memory: a separate server instance, logging Halogen's own memory breakdown, GPU GTT/VRAM and <code>/proc/meminfo</code>; then one 30,023-token prompt, sampled every 0.5 s.</span></li>
+      <li><span class="zh">功耗与温度：每秒读 amdgpu 传感器的 PPT（芯片封装功耗）和 GPU 温度。</span><span class="en">Power and temperature: the amdgpu sensors' PPT (package power) and GPU temperature, read every second.</span></li>
+      <li><span class="zh">每种设置在同一台机器、同一天连续跑一遍；每次测试前正常关闭上一个服务器，并确认显卡内存已释放（≤ 0.3 GiB）。</span><span class="en">Each setting ran once, back to back on the same machine and day; before each test the previous server was shut down cleanly and GPU memory confirmed released (≤ 0.3 GiB).</span></li>
+      <li><span class="zh">Strata 对比：llm-probe.sh 给两个服务器发完全相同的请求（3 个短提示各生成 256 token；8K/32K/131K 提示各生成 128 token；同一个 3 万 token 长提示），每个提示都是新的，提示缓存帮不上忙；同时每 0.5 秒记录 GTT、可用内存、功耗和温度。Strata 标准测试用 strata bench run（standard-v1）；它不接受其他服务器，所以用 replay-bench.py 把同样 9 个性能请求原样发给 Halogen。两个引擎轮流单独运行，切换前确认显卡内存已释放。</span><span class="en">Strata comparison: llm-probe.sh sends identical requests to both servers (3 short prompts with 256 tokens out; 8K/32K/131K prompts with 128 tokens out; one 30K-token prompt), every prompt new so no prompt cache helps, while logging GTT, free memory, power and temperature every 0.5 s. Strata's standard benchmark is strata bench run (standard-v1); it accepts no other server, so replay-bench.py sent the same 9 performance requests unchanged to Halogen. The engines ran one at a time, with GPU memory confirmed released before each switch.</span></li>
+    </ol>
+    <p class="note"><span class="zh">来源：</span><span class="en">Sources: </span><a href="https://github.com/peonist-ai/halogen-flash-server/blob/main/docs/performance.md"><span class="zh">Halogen 性能文档</span><span class="en">Halogen performance docs</span></a> · <a href="https://github.com/peonist-ai/halogen-flash-server/blob/main/docs/FLAGS.md"><span class="zh">FLAGS 文档（KV8）</span><span class="en">FLAGS docs (KV8)</span></a> · <a href="https://github.com/peonist-ai/halogen-flash-server/blob/main/docs/configuration.md"><span class="zh">配置文档</span><span class="en">Configuration docs</span></a> · <a href="https://github.com/peonist-ai/halogen-flash-server/blob/main/docs/precision.md"><span class="zh">权重精度（ht43）</span><span class="en">Weight precision (ht43)</span></a></p>
+    <p class="note"><span class="zh">原始数据（CSV）：</span><span class="en">Raw data (CSV): </span><a href="https://github.com/Johnny-dai-git/qwen38-flash-next-evals/tree/main/data/memory-compression">data/memory-compression/</a></p>
+  </div>
+
+  <footer class="foot">
+    <p><span class="zh">由 <a href="https://github.com/Johnny-dai-git">Johnny-dai-git</a> 在自己的机器上测试和整理。</span><span class="en">Run and written up by <a href="https://github.com/Johnny-dai-git">Johnny-dai-git</a> on their own machine.</span></p>
+    <p><span class="zh">源码与数据：</span><span class="en">Source and data: </span><a href="https://github.com/Johnny-dai-git/qwen38-flash-next-evals">github.com/Johnny-dai-git/qwen38-flash-next-evals</a></p>
+  </footer>
+</div>
+
+<script>
+  // Measured on 2026-10-29 (tok/s, GiB). Series order: default, compressed.
+  const SERIES = [
+    {key: 'def', name: 'Default', color: '--hud'},
+    {key: 'cmp', name: 'Compressed', color: '--hv2'},
+  ];
+  const CASES = [{"zh": "写代码 A", "en": "Code A", "v": [81.51, 77.77]}, {"zh": "写代码 B", "en": "Code B", "v": [72.5, 72.52]}, {"zh": "证明 A", "en": "Proof A", "v": [76.01, 78.61]}, {"zh": "证明 B", "en": "Proof B", "v": [72.57, 74.4]}, {"zh": "步骤说明 A", "en": "Procedure A", "v": [74.65, 74.34]}, {"zh": "步骤说明 B", "en": "Procedure B", "v": [60.48, 59.72]}, {"zh": "聊天 A", "en": "Chat A", "v": [58.53, 59.21]}, {"zh": "聊天 B", "en": "Chat B", "v": [58.74, 60.11]}, {"zh": "散文 A", "en": "Prose A", "v": [56.01, 54.3]}, {"zh": "散文 B", "en": "Prose B", "v": [58.88, 55.69]}];
+  const TIMELINE = {"def":[[0,0.29],[1,0.29],[2,0.29],[3,13.79],[4,0.29],[5,11.56],[6,27.38],[7,27.39],[8,27.39],[9,27.39],[10,27.39],[11,27.39],[12,27.44],[13,27.45],[14,27.46],[15,27.46],[16,27.45],[17,27.5],[18,27.54],[19,27.52],[20,27.52],[21,27.52],[22,27.52],[23,27.52],[24,27.53],[25,27.53],[26,27.54],[27,27.45],[28,27.44],[29,27.44],[30,27.45],[31,27.48],[32,27.52],[33,27.52],[34,27.51],[35,27.54],[36,27.53],[37,27.53],[38,27.53],[39,27.53],[40,27.54],[41,27.43],[42,27.46],[43,27.46],[44,27.52],[45,27.53],[46,27.54],[47,27.54],[48,27.54],[49,27.55],[50,27.52],[51,27.44],[52,27.44],[53,27.43],[54,27.43],[56,27.43],[57,27.43],[58,27.43],[59,27.43],[60,27.43],[61,27.46],[62,27.45],[63,27.46],[64,27.49],[65,27.43],[66,27.43],[67,27.43],[68,27.43],[69,27.44],[70,27.45],[71,27.43],[72,27.43],[73,27.44],[74,27.45],[75,27.48],[76,27.47],[77,27.47],[78,27.47],[79,27.47],[80,27.47],[81,27.46],[82,27.42],[83,27.41],[84,27.42],[85,27.42],[86,27.42],[87,27.42],[88,27.42],[89,27.42],[90,27.42],[91,27.42],[92,27.42],[93,27.42],[94,27.42],[95,27.44],[96,27.44],[97,27.42],[98,27.42],[99,27.42],[100,27.42],[101,27.43],[102,27.41],[103,27.41],[104,27.41],[105,27.44],[106,27.44],[107,27.43],[108,27.43],[109,27.43],[111,27.43],[112,27.43],[113,27.43],[114,27.43],[115,27.43],[116,27.43],[117,27.43],[118,27.43],[119,27.43],[120,27.43],[121,27.43],[122,27.43],[123,27.43],[124,27.43],[125,27.43],[126,27.43],[127,27.43],[128,27.43],[129,27.44],[130,27.44],[131,27.45],[132,27.45],[133,27.44],[134,27.44],[135,27.45],[136,27.45],[137,27.44],[138,27.44],[139,27.44],[140,27.44],[141,27.44],[142,27.41],[143,27.41],[144,27.46],[145,27.44],[146,27.44],[147,27.44],[148,27.44],[149,27.44],[150,27.44],[151,27.44],[152,27.45],[153,27.45],[154,27.45],[155,27.45],[156,27.46],[157,27.46],[158,27.46],[159,27.46],[160,27.49],[161,27.46],[162,27.46],[163,27.47],[165,27.46],[166,27.47],[167,27.48],[168,27.48],[169,27.46],[170,27.48],[171,27.46],[172,27.48],[173,27.47],[174,27.47],[175,27.46],[176,27.46],[177,27.46],[178,27.46],[179,27.46],[180,27.46],[181,27.46],[182,27.47],[183,27.46],[184,27.46],[185,27.46],[186,27.46],[187,27.46],[188,27.46],[189,27.46],[190,27.47],[191,27.47],[192,27.49],[193,27.47],[194,27.47],[195,27.47],[196,27.47],[197,27.47],[198,27.47],[199,27.47],[200,27.47],[201,27.47],[202,27.47],[203,27.47],[204,27.46],[205,27.46],[206,27.46],[207,27.47],[208,27.47],[209,27.47],[210,27.47],[211,27.46],[212,27.47],[213,27.46],[214,27.46],[215,27.46],[216,27.46],[217,27.47],[218,27.47],[219,27.47],[221,27.46],[222,27.47],[223,27.47],[224,27.47],[225,27.46],[226,27.47],[227,27.47],[228,27.47],[229,27.47],[230,27.47],[231,27.47],[232,27.47],[233,27.47],[234,27.47],[235,27.47],[236,27.46],[237,27.47],[238,27.47],[239,27.47],[240,27.47],[241,27.47],[242,27.46],[243,27.47],[244,27.47],[245,27.47],[246,27.47],[247,27.47],[248,27.47],[249,27.46],[250,27.47],[251,27.47],[252,27.47],[253,27.47],[254,27.47],[255,27.47],[256,27.46],[257,27.46],[258,27.46],[259,27.47],[260,27.47],[261,27.47],[262,27.47],[263,27.47],[264,27.47],[265,27.47],[266,27.47],[267,27.47],[268,27.47],[269,27.47],[270,27.47],[271,27.47],[272,27.47],[273,27.47],[274,27.47],[275,27.47],[276,27.47],[277,27.47],[279,27.47],[280,27.47],[281,27.47],[282,27.47],[283,27.46],[284,27.47],[285,27.47],[286,27.47],[287,27.47],[288,27.47],[289,27.47],[290,27.47],[291,27.47],[292,27.47],[293,27.47],[294,27.47],[295,27.47],[296,27.47],[297,27.47],[298,27.46],[299,27.46],[300,27.46],[301,27.46],[302,27.47],[303,27.46],[304,27.46],[305,27.47],[306,27.46],[307,27.46],[308,27.47],[309,27.47],[310,27.47],[311,27.47]],"cmp":[[0,0.27],[1,0.27],[2,0.27],[3,1.46],[4,12.57],[5,12.58],[6,12.58],[7,12.58],[8,12.58],[9,12.58],[10,12.6],[11,12.6],[12,12.6],[13,12.6],[14,12.6],[15,12.6],[16,12.6],[17,12.6],[18,12.6],[19,12.6],[21,12.6],[22,12.6],[23,12.6],[24,12.6],[25,12.6],[26,12.6],[27,12.6],[28,12.6],[29,12.6],[30,12.6],[31,12.6],[32,12.6],[33,12.6],[34,12.6],[35,12.6],[36,12.6],[37,12.6],[38,12.6],[39,12.6],[40,12.6],[41,12.6],[42,12.6],[43,12.6],[44,12.6],[45,12.6],[46,12.6],[47,12.6],[48,12.6],[49,12.6],[50,12.6],[51,12.6],[52,12.6],[53,12.6],[54,12.6],[55,12.6],[56,12.6],[57,12.6],[58,12.6],[59,12.6],[60,12.6],[61,12.6],[62,12.6],[63,12.6],[64,12.6],[65,12.6],[66,12.6],[67,12.6],[68,12.6],[69,12.6],[70,12.6],[71,12.6],[72,12.6],[73,12.6],[74,12.6],[76,12.6],[77,12.6],[78,12.6],[79,12.6],[80,12.6],[81,12.6],[82,12.6],[83,12.6],[84,12.6],[85,12.6],[86,12.58],[87,12.58],[88,12.58],[89,12.58],[90,12.58],[91,12.58],[92,12.58],[93,12.58],[94,12.58],[95,12.57],[96,12.61],[97,12.57],[98,12.58],[99,12.56],[100,12.57],[101,12.55],[102,12.55],[103,12.55],[104,12.55],[105,12.55],[106,12.55],[107,12.55],[108,12.55],[109,12.55],[110,12.55],[111,12.55],[112,12.55],[113,12.55],[114,12.55],[115,12.55],[116,12.55],[117,12.55],[118,12.55],[119,12.55],[120,12.55],[121,12.55],[122,12.55],[123,12.55],[124,12.55],[125,12.56],[126,12.56],[127,12.56],[128,12.55],[129,12.55],[130,12.55],[131,12.55],[132,12.55],[134,12.55],[135,12.55],[136,12.55],[137,12.55],[138,12.55],[139,12.55],[140,12.55],[141,12.55],[142,12.55],[143,12.55],[144,12.56],[145,12.56],[146,12.56],[147,12.55],[148,12.55],[149,12.55],[150,12.55],[151,12.55],[152,12.55],[153,12.55],[154,12.55],[155,12.55],[156,12.55],[157,12.56],[158,12.55],[159,12.55],[160,12.56],[161,12.56],[162,12.55],[163,12.54],[164,12.54],[165,12.55],[166,12.55],[167,12.55],[168,12.55],[169,12.55],[170,12.55],[171,12.55],[172,12.55],[173,12.55],[174,12.55],[175,12.55],[176,12.55],[177,12.55],[178,12.56],[179,12.55],[180,12.54],[181,12.55],[182,12.55],[183,12.55],[184,12.54],[185,12.54],[186,12.55],[187,12.55],[188,12.55],[189,12.55],[191,12.55],[192,12.55],[193,12.55],[194,12.55],[195,12.55],[196,12.55],[197,12.55],[198,12.55],[199,12.55],[200,12.55],[201,12.55],[202,12.55],[203,12.55],[204,12.55],[205,12.55],[206,12.55],[207,12.55],[208,12.55],[209,12.55],[210,12.55],[211,12.55],[212,12.55],[213,12.55],[214,12.55],[215,12.55],[216,12.54],[217,12.55],[218,12.55],[219,12.55],[220,12.55],[221,12.55],[222,12.55],[223,12.54],[224,12.55],[225,12.55],[226,12.55],[227,12.55],[228,12.55],[229,12.55],[230,12.55],[231,12.55],[232,12.55],[233,12.55],[234,12.55],[235,12.55],[236,12.55],[237,12.55],[238,12.55],[239,12.55],[240,12.55],[241,12.55],[242,12.55],[243,12.55],[244,12.54],[245,12.54],[246,12.54],[247,12.54],[249,12.54],[250,12.54],[251,12.54],[252,12.54],[253,12.54],[254,12.54],[255,12.54],[256,12.54],[257,12.54],[258,12.54],[259,12.54],[260,12.54],[261,12.54],[262,12.54],[263,12.54],[264,12.54],[265,12.54],[266,12.54],[267,12.54],[268,12.53],[269,12.53],[270,12.54],[271,12.54],[272,12.62],[273,12.62],[274,12.53],[275,12.53],[276,12.54],[277,12.54],[278,12.54],[279,12.54],[280,12.54],[281,12.54],[282,12.54],[283,12.54],[284,12.54],[285,12.54],[286,12.54],[287,12.54],[288,12.54],[289,12.54],[290,12.54],[291,12.54],[292,12.54],[293,12.54],[294,12.54],[295,12.54],[296,12.54],[297,12.54],[298,12.54],[299,12.54],[300,12.54],[301,12.54],[302,12.54],[303,12.54],[304,12.54],[305,12.54],[307,12.54],[308,12.54],[309,12.54],[310,12.54],[311,12.54],[312,12.54]]};
+  const RATIO = [{"zh": "短提示生成", "en": "Short decode", "strata": 34.0, "halogen": 66.7, "std": false}, {"zh": "读提示 8K", "en": "Prompt 8K", "strata": 445.5, "halogen": 1742.0, "std": false}, {"zh": "读提示 32K", "en": "Prompt 32K", "strata": 479.0, "halogen": 1788.0, "std": false}, {"zh": "读提示 131K", "en": "Prompt 131K", "strata": 373.2, "halogen": 1688.2, "std": false}, {"zh": "3 万 token 提示", "en": "30K prompt", "strata": 479.0, "halogen": 1814.3, "std": false}, {"zh": "标准·短提示生成", "en": "Std short decode", "strata": 34.8, "halogen": 56.5, "std": true}, {"zh": "标准·4K 读提示", "en": "Std 4K prompt", "strata": 391.1, "halogen": 1729.9, "std": true}, {"zh": "标准·4K 生成", "en": "Std 4K decode", "strata": 29.8, "halogen": 62.2, "std": true}, {"zh": "标准·16K 读提示", "en": "Std 16K prompt", "strata": 476.3, "halogen": 1847.1, "std": true}, {"zh": "标准·16K 生成", "en": "Std 16K decode", "strata": 30.2, "halogen": 62.4, "std": true}];
+  const SYSTEM_RAM = 122;
+  const MEMORY = [
+    {label: {zh: '默认', en: 'Default'}, color: '--hud', parts: [
+      {zh: '模型权重', en: 'Weights', v: 62.1},
+      {zh: '对话缓存池', en: 'KV pool', v: 14.4},
+      {zh: '工作区', en: 'Workspace', v: 12.5},
+    ]},
+    {label: {zh: '压缩', en: 'Compressed'}, color: '--hv2', parts: [
+      {zh: '模型权重', en: 'Weights', v: 62.1},
+      {zh: '对话缓存池', en: 'KV pool', v: 4.1},
+      {zh: '工作区', en: 'Workspace', v: 8.0},
+    ]},
+  ];
+
+  const NS = 'http://www.w3.org/2000/svg';
+  const root = document.documentElement;
+  const lang = () => root.dataset.lang || 'zh';
+  const tx = (o) => (lang() === 'en' ? o.en : lang() === 'both' ? `${o.zh} · ${o.en}` : o.zh);
+  const css = (name) => getComputedStyle(root).getPropertyValue(name).trim();
+  const fmt = (v) => (v >= 100 ? Math.round(v).toLocaleString('en-US') : v.toFixed(1));
+
+  function el(parent, tag, attrs = {}, text) {
+    const n = document.createElementNS(NS, tag);
+    for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+    if (text != null) n.textContent = text;
+    parent.appendChild(n);
+    return n;
+  }
+
+  function widest(svg, labels, size) {
+    const probe = el(svg, 'text', {'font-size': size});
+    let w = 0;
+    for (const l of labels) { probe.textContent = l; w = Math.max(w, probe.getComputedTextLength()); }
+    probe.remove();
+    return w;
+  }
+
+  function niceMax(v) {
+    const step = Math.pow(10, Math.floor(Math.log10(v)));
+    return Math.ceil(v / step * 2) / 2 * step;
+  }
+
+  const niceScale = (top) => {
+    const t = Math.max(top, 1), raw = t / 5, p = 10 ** Math.floor(Math.log10(raw));
+    const step = [1, 2, 2.5, 5, 10].find((m) => m * p >= raw) * p;
+    return {step, max: Math.ceil(t / step) * step};
+  };
+  const catLines = (r) => (lang() === 'en' ? [r.en] : lang() === 'both' && r.zh !== r.en ? [r.zh, r.en] : [r.zh]);
+
+  // Text measurement with a probe element; wraps on spaces, or per character for text without them
+  function measurer(svg, size, weight = 400) {
+    const probe = el(svg, 'text', {'font-size': size, 'font-weight': weight});
+    const width = (t) => { probe.textContent = t; return probe.getComputedTextLength(); };
+    const wrap = (text, maxW) => {
+      if (width(text) <= maxW) return [text];
+      const spaced = text.includes(' ');
+      if (!spaced && !/[^\x00-\x7f]/.test(text)) return [text];  // a single Latin word stays whole
+      const units = spaced ? text.split(' ') : [...text], join = spaced ? ' ' : '';
+      const lines = []; let cur = '';
+      for (const u of units) {
+        const next = cur ? cur + join + u : u;
+        if (cur && width(next) > maxW) { lines.push(cur); cur = u; } else cur = next;
+      }
+      if (cur) lines.push(cur);
+      return lines;
+    };
+    return {width, wrap, done: () => probe.remove()};
+  }
+
+  // Standard grouped column figure: y axis with ticks and a title, optional 95% CI whiskers,
+  // dashed lighter columns for unfinished runs, a dash where a setup has not run.
+  // Category labels wrap to the group width; values stand upright when they fit the column, else rotate.
+  function barFigure(box, {rows, y, dec = 1, scale, best, series = SERIES}) {
+    box.replaceChildren();
+    const W = Math.max(260, box.clientWidth), narrow = W < 480, n = series.length;
+    const svg = el(box, 'svg', {role: 'img'});
+    const tops = rows.flatMap((r) => r.v.map((v, i) => (v == null ? 0 : v + ((r.ci && r.ci[i]) || 0))));
+    const {step, max} = scale || niceScale(Math.max(...tops));
+    const num = (v) => (v >= 1000 ? Math.round(v).toLocaleString('en-US') : v.toFixed(dec));
+    const tick = (v) => (v >= 1000 ? v.toLocaleString('en-US') : String(+v.toFixed(2)));
+    const ticks = [];
+    for (let t = 0; t <= max + step / 2; t += step) ticks.push(+t.toFixed(6));
+    const titleLines = catLines(y), catSize = narrow ? 11 : 12;
+    const mTick = measurer(svg, 11), mCat = measurer(svg, catSize);
+    const tickW = Math.max(...ticks.map((t) => mTick.width(tick(t))));
+    const ml = 16 * titleLines.length + 22 + Math.ceil(tickW), mr = 6;
+    const groupW = (W - ml - mr) / rows.length;
+    const gap = 2, fill = narrow ? 0.86 : 0.78, barW = Math.min(40, (groupW * fill - gap * (n - 1)) / n), block = n * barW + (n - 1) * gap;
+    const valSize = barW + gap < 12.5 ? 9 : narrow ? 10 : 10.5, mVal = measurer(svg, valSize);
+    const cats = rows.map((r) => catLines(r).flatMap((t) => mCat.wrap(t, groupW - 6)));
+    const catH = Math.max(...cats.map((c) => c.length)) * 15;
+    const labelW = Math.max(0, ...rows.flatMap((r) => r.v.filter((v) => v != null).map((v) => mVal.width(num(v)))));
+    const upright = labelW + 6 <= barW;
+    const mt = upright ? 26 : Math.ceil(labelW) + 14, mb = 16 + catH, plot = narrow ? 180 : 220;
+    const H = mt + plot + mb;
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.setAttribute('aria-label', rows.map((r) => `${tx(r)}: ${series.map((s, i) => `${s.name} ${r.v[i] == null ? '-' : num(r.v[i])}`).join(', ')}`).join('; '));
+    const y0 = mt + plot, sy = (v) => y0 - (v / max) * plot;
+    for (const t of ticks) {
+      if (t > 0) el(svg, 'line', {x1: ml, x2: W - mr, y1: sy(t), y2: sy(t), stroke: css('--grid')});
+      el(svg, 'line', {x1: ml - 4, x2: ml, y1: sy(t), y2: sy(t), stroke: css('--muted')});
+      el(svg, 'text', {x: ml - 8, y: sy(t) + 4, 'text-anchor': 'end', 'font-size': 11, fill: css('--muted'), class: 'num'}, tick(t));
+    }
+    titleLines.forEach((t, k) => el(svg, 'text', {transform: `translate(${17 + k * 16} ${mt + plot / 2}) rotate(-90)`, 'text-anchor': 'middle', 'font-size': 11.5, fill: css('--muted')}, t));
+    rows.forEach((r, i) => {
+      const gx = ml + i * groupW + (groupW - block) / 2;
+      const present = r.v.filter((v) => v != null);
+      const top = best && present.length ? Math[best](...present) : null;
+      series.forEach((s, j) => {
+        const v = r.v[j], cx = gx + j * (barW + gap) + barW / 2;
+        if (v == null) {
+          el(svg, 'text', {x: cx, y: y0 - 6, 'text-anchor': 'middle', 'font-size': 12, fill: css('--muted')}, '—');
+          return;
+        }
+        const color = css(s.color), part = r.partial && r.partial[j], ci = (r.ci && r.ci[j]) || 0;
+        const rect = {x: cx - barW / 2, y: sy(v), width: barW, height: Math.max(1, y0 - sy(v)), fill: color};
+        if (part) Object.assign(rect, {'fill-opacity': .3, stroke: color, 'stroke-width': 1, 'stroke-dasharray': '3 2'});
+        el(svg, 'rect', rect);
+        if (ci) {
+          const hi = sy(Math.min(max, v + ci)), lo = sy(Math.max(0, v - ci)), cap = Math.min(5, barW / 3);
+          for (const [a, b, c, d] of [[cx, hi, cx, lo], [cx - cap, hi, cx + cap, hi], [cx - cap, lo, cx + cap, lo]])
+            el(svg, 'line', {x1: a, y1: b, x2: c, y2: d, stroke: css('--fg'), 'stroke-width': 1.2});
+        }
+        const yl = sy(Math.min(max, v + ci)) - 6, strong = v === top;
+        const t = {'font-size': valSize, class: 'num', fill: strong ? css('--fg') : css('--muted'), 'font-weight': strong ? 600 : 400};
+        if (upright) el(svg, 'text', {x: cx, y: yl, 'text-anchor': 'middle', ...t}, num(v));
+        else el(svg, 'text', {transform: `translate(${cx + 3.5} ${yl}) rotate(-90)`, ...t}, num(v));
+      });
+      cats[i].forEach((t, k) => el(svg, 'text', {x: ml + (i + .5) * groupW, y: y0 + 18 + k * 15, 'text-anchor': 'middle', 'font-size': catSize, fill: css('--fg')}, t));
+    });
+    el(svg, 'line', {x1: ml, x2: ml, y1: mt - 4, y2: y0, stroke: css('--muted')});
+    el(svg, 'line', {x1: ml, x2: W - mr, y1: y0, y2: y0, stroke: css('--muted')});
+    mTick.done(); mCat.done(); mVal.done();
+  }
+
+  // Forest plot of paired differences: point estimate, 95% CI, reference line at zero
+  function forest(box, rows) {
+    box.replaceChildren();
+    const W = Math.max(260, box.clientWidth), narrow = W < 560;
+    const svg = el(box, 'svg', {role: 'img'});
+    const m13 = measurer(svg, 13), m11 = measurer(svg, 11.5), mLab = measurer(svg, 12.5);
+    const ml = narrow ? 8 : Math.ceil(Math.max(...rows.map((r) => m13.width(tx(r))))) + 16, mr = 12;
+    const labs = rows.map((r) => (narrow ? mLab.wrap(tx(r), W - ml - mr) : [tx(r)]));
+    const title = catLines({zh: '差值（nats/token），负值表示 UD-Q4_K_XL 更好', en: 'Difference (nats/token); negative favours UD-Q4_K_XL'}).flatMap((t) => m11.wrap(t, W - ml - mr));
+    const rowH = narrow ? 50 + 16 * Math.max(...labs.map((l) => l.length)) : 44, mt = 8, mb = 28 + title.length * 15;
+    const H = mt + rows.length * rowH + mb;
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.setAttribute('aria-label', rows.map((r) => `${tx(r)}: ${r.d} (${r.lo} to ${r.hi})`).join('; '));
+    const lo = -0.03, hi = 0, sx = (v) => ml + ((v - lo) / (hi - lo)) * (W - ml - mr), y0 = mt + rows.length * rowH;
+    for (const t of [-0.03, -0.02, -0.01, 0]) {
+      el(svg, 'line', {x1: sx(t), x2: sx(t), y1: mt, y2: y0, stroke: css(t === 0 ? '--muted' : '--grid'), 'stroke-dasharray': t === 0 ? '4 3' : ''});
+      el(svg, 'text', {x: sx(t), y: y0 + 16, 'text-anchor': t === 0 ? 'end' : t === lo ? 'start' : 'middle', 'font-size': 11, fill: css('--muted'), class: 'num'}, t === 0 ? '0' : t.toFixed(2).replace('-', '−'));
+    }
+    el(svg, 'line', {x1: ml, x2: W - mr, y1: y0, y2: y0, stroke: css('--muted')});
+    title.forEach((t, k) => el(svg, 'text', {x: (ml + W - mr) / 2, y: y0 + 36 + k * 15, 'text-anchor': 'middle', 'font-size': 11.5, fill: css('--muted')}, t));
+    rows.forEach((r, i) => {
+      const cy = mt + i * rowH + rowH - 16;
+      if (narrow) labs[i].forEach((t, k) => el(svg, 'text', {x: ml, y: cy - 28 - (labs[i].length - 1 - k) * 16, 'font-size': 12.5, fill: css('--fg')}, t));
+      else el(svg, 'text', {x: ml - 14, y: cy + 4, 'text-anchor': 'end', 'font-size': 13, fill: css('--fg')}, tx(r));
+      for (const [a, b, c, d] of [[sx(r.lo), cy, sx(r.hi), cy], [sx(r.lo), cy - 5, sx(r.lo), cy + 5], [sx(r.hi), cy - 5, sx(r.hi), cy + 5]])
+        el(svg, 'line', {x1: a, y1: b, x2: c, y2: d, stroke: css('--fg'), 'stroke-width': 1.4});
+      el(svg, 'circle', {cx: sx(r.d), cy, r: 4.5, fill: css('--gufo')});
+      el(svg, 'text', {x: sx(r.d), y: cy - 10, 'text-anchor': 'middle', 'font-size': 11, class: 'num', fill: css('--fg'), 'font-weight': 600}, r.d.toFixed(4).replace('-', '−'));
+    });
+    m13.done(); m11.done(); mLab.done();
+  }
+
+  // One stacked bar per setup against the 122 GiB of system RAM; each bar's legend wraps to the width
+  function memoryBars(box) {
+    box.replaceChildren();
+    const W = Math.max(260, box.clientWidth), narrow = W < 480;
+    const svg = el(box, 'svg', {role: 'img'});
+    const m13 = measurer(svg, 13, 600), m11 = measurer(svg, 11);
+    const ml = narrow ? 0 : Math.ceil(Math.max(...MEMORY.map((m) => m13.width(m.name)))) + 16;
+    const x0 = ml, x1 = W - 8, span = x1 - x0;
+    const sx = (v) => x0 + (v / SYSTEM_RAM) * span;
+    const legends = MEMORY.map((m) => {
+      const lines = [[]]; let lx = 0;
+      m.parts.forEach((p, j) => {
+        const label = `${tx(p)} ${p.v.toFixed(1)}`, w = 13 + m11.width(label) + 14;
+        if (lx && lx + w > span) { lines.push([]); lx = 0; }
+        lines[lines.length - 1].push({j, label, x: lx});
+        lx += w;
+      });
+      return lines;
+    });
+    const barH = 24, labelH = narrow ? 20 : 0, top = 24, axis = 22;
+    const rowHs = legends.map((l) => labelH + barH + 8 + l.length * 16 + 12);
+    const H = top + rowHs.reduce((a, b) => a + b, 0) + axis;
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.setAttribute('aria-label', MEMORY.map((m) => `${m.name} ${m.parts.reduce((a, p) => a + p.v, 0).toFixed(1)} GiB`).join(', '));
+    for (const t of [0, 30, 60, 90, 122]) {
+      el(svg, 'line', {x1: sx(t), x2: sx(t), y1: top - 4, y2: H - axis + 4, stroke: css('--grid')});
+      el(svg, 'text', {x: sx(t), y: H - 6, 'text-anchor': t === 122 ? 'end' : t === 0 && narrow ? 'start' : 'middle', 'font-size': 11, fill: css('--muted'), class: 'num'}, t === 122 ? '122 GiB' : t);
+    }
+    el(svg, 'line', {x1: sx(SYSTEM_RAM), x2: sx(SYSTEM_RAM), y1: top - 4, y2: H - axis + 4, stroke: css('--muted'), 'stroke-dasharray': '3 3'});
+    el(svg, 'text', {x: sx(SYSTEM_RAM), y: 12, 'text-anchor': 'end', 'font-size': 11, fill: css('--muted')}, tx({zh: '系统内存', en: 'System RAM'}));
+    let y = top;
+    MEMORY.forEach((m, i) => {
+      const by = y + labelH;
+      const total = m.parts.reduce((a, p) => a + p.v, 0);
+      if (narrow) el(svg, 'text', {x: 0, y: y + 14, 'font-size': 13, 'font-weight': 600, fill: css('--fg')}, `${m.name}  ${total.toFixed(1)} GiB`);
+      else el(svg, 'text', {x: ml - 14, y: by + barH / 2 + 5, 'text-anchor': 'end', 'font-size': 13, 'font-weight': 600, fill: css('--fg')}, m.name);
+      let x = 0;
+      m.parts.forEach((p, j) => {
+        const op = [1, .6, .35][j];
+        el(svg, 'rect', {x: sx(x), y: by, width: Math.max(1, sx(x + p.v) - sx(x) - 1.5), height: barH, fill: css(m.color), 'fill-opacity': op});
+        if (sx(x + p.v) - sx(x) > 44) el(svg, 'text', {x: sx(x) + 7, y: by + barH / 2 + 4, 'font-size': 11.5, fill: j === 0 ? css('--bg') : css('--fg'), class: 'num'}, p.v.toFixed(1));
+        x += p.v;
+      });
+      if (!narrow) {
+        const room = sx(SYSTEM_RAM) - sx(total);
+        const tt = el(svg, 'text', {x: sx(total) + 6, y: by + barH / 2 + 4, 'font-size': 11.5, fill: css('--fg'), class: 'num', 'font-weight': 600}, total.toFixed(1));
+        if (room < 44) { tt.setAttribute('x', sx(total) - 6); tt.setAttribute('text-anchor', 'end'); }
+      }
+      legends[i].forEach((line, li) => line.forEach(({j, label, x: lx}) => {
+        const ly = by + barH + 8 + li * 16;
+        el(svg, 'rect', {x: x0 + lx, y: ly, width: 9, height: 9, rx: 1.5, fill: css(m.color), 'fill-opacity': [1, .6, .35][j]});
+        el(svg, 'text', {x: x0 + lx + 13, y: ly + 8.5, 'font-size': 11, fill: css('--muted')}, label);
+      }));
+      y += rowHs[i];
+    });
+    m13.done(); m11.done();
+  }
+
+
+
+  // Two-series line chart over seconds: GTT in GiB through the decode benchmark
+  function lineFigure(box, series) {
+    box.replaceChildren();
+    const W = Math.max(260, box.clientWidth), svg = el(box, 'svg', {role: 'img'});
+    const xMax = Math.max(...series.flatMap((s) => s.pts.map((p) => p[0])));
+    const {step, max} = niceScale(Math.max(...series.flatMap((s) => s.pts.map((p) => p[1]))));
+    const yTitle = catLines({zh: '显卡 GTT（GiB）', en: 'GPU GTT (GiB)'});
+    const ml = 16 * yTitle.length + 34, mr = 54, mt = 12, plot = W < 480 ? 170 : 210, mb = 40, H = mt + plot + mb;
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.setAttribute('aria-label', series.map((s) => `${tx(s.label)}: max ${Math.max(...s.pts.map((p) => p[1])).toFixed(1)} GiB`).join('; '));
+    const sx = (v) => ml + (v / xMax) * (W - ml - mr), sy = (v) => mt + plot - (v / max) * plot;
+    for (let t = 0; t <= max + step / 2; t += step) {
+      el(svg, 'line', {x1: ml, x2: W - mr, y1: sy(t), y2: sy(t), stroke: css(t ? '--grid' : '--muted')});
+      el(svg, 'text', {x: ml - 8, y: sy(t) + 4, 'text-anchor': 'end', 'font-size': 11, fill: css('--muted'), class: 'num'}, String(+t.toFixed(2)));
+    }
+    const xStep = xMax > 200 ? 60 : 30;
+    for (let t = 0; t <= xMax; t += xStep) el(svg, 'text', {x: sx(t), y: mt + plot + 16, 'text-anchor': 'middle', 'font-size': 11, fill: css('--muted'), class: 'num'}, t);
+    el(svg, 'text', {x: (ml + W - mr) / 2, y: H - 6, 'text-anchor': 'middle', 'font-size': 11.5, fill: css('--muted')}, tx({zh: '时间（秒）', en: 'Time (s)'}));
+    yTitle.forEach((t, k) => el(svg, 'text', {transform: `translate(${17 + k * 16} ${mt + plot / 2}) rotate(-90)`, 'text-anchor': 'middle', 'font-size': 11.5, fill: css('--muted')}, t));
+    for (const s of series) {
+      el(svg, 'path', {d: s.pts.map((p, i) => `${i ? 'L' : 'M'}${sx(p[0]).toFixed(1)} ${sy(p[1]).toFixed(1)}`).join(''), fill: 'none', stroke: css(s.color), 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round'});
+      const last = s.pts[s.pts.length - 1];
+      el(svg, 'text', {x: sx(last[0]) + 6, y: sy(last[1]) + 4, 'font-size': 11, class: 'num', 'font-weight': 600, fill: css('--fg')}, last[1].toFixed(1));
+    }
+  }
+
+  // Halogen ÷ Strata ratio per test, one column each, with a dashed line at 1×
+  function ratioFigure(box) {
+    box.replaceChildren();
+    const W = Math.max(260, box.clientWidth), narrow = W < 480, svg = el(box, 'svg', {role: 'img'});
+    const rows = RATIO.map((r) => ({...r, v: r.halogen / r.strata}));
+    const max = Math.ceil(Math.max(...rows.map((r) => r.v))), mCat = measurer(svg, narrow ? 10.5 : 11.5);
+    const yTitle = catLines({zh: 'Halogen ÷ Strata（倍）', en: 'Halogen ÷ Strata (×)'});
+    const ml = 16 * yTitle.length + 28, mr = 6, groupW = (W - ml - mr) / rows.length;
+    const cats = rows.map((r) => catLines(r).flatMap((t) => mCat.wrap(t, groupW - 4)));
+    const mt = 22, plot = narrow ? 170 : 210, mb = 14 + Math.max(...cats.map((c) => c.length)) * 14, H = mt + plot + mb;
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.setAttribute('aria-label', rows.map((r) => `${tx(r)}: ${r.v.toFixed(1)}×`).join('; '));
+    const y0 = mt + plot, sy = (v) => y0 - (v / max) * plot, barW = Math.min(30, groupW * .6);
+    for (let t = 0; t <= max; t++) {
+      el(svg, 'line', {x1: ml, x2: W - mr, y1: sy(t), y2: sy(t), stroke: css(t === 1 ? '--muted' : '--grid'), 'stroke-dasharray': t === 1 ? '4 3' : ''});
+      el(svg, 'text', {x: ml - 8, y: sy(t) + 4, 'text-anchor': 'end', 'font-size': 11, fill: css('--muted'), class: 'num'}, `${t}×`);
+    }
+    yTitle.forEach((t, k) => el(svg, 'text', {transform: `translate(${15 + k * 16} ${mt + plot / 2}) rotate(-90)`, 'text-anchor': 'middle', 'font-size': 11.5, fill: css('--muted')}, t));
+    rows.forEach((r, i) => {
+      const cx = ml + (i + .5) * groupW;
+      el(svg, 'rect', {x: cx - barW / 2, y: sy(r.v), width: barW, height: y0 - sy(r.v), fill: css(r.std ? '--hud' : '--hv2')});
+      el(svg, 'text', {x: cx, y: sy(r.v) - 6, 'text-anchor': 'middle', 'font-size': 10.5, class: 'num', 'font-weight': 600, fill: css('--fg')}, `${r.v.toFixed(1)}×`);
+      cats[i].forEach((t, k) => el(svg, 'text', {x: cx, y: y0 + 15 + k * 14, 'text-anchor': 'middle', 'font-size': narrow ? 10.5 : 11.5, fill: css('--fg')}, t));
+    });
+    el(svg, 'line', {x1: ml, x2: W - mr, y1: y0, y2: y0, stroke: css('--muted')});
+    mCat.done();
+  }
+
+  function drawAll() {
+    const $ = (id) => document.getElementById(id);
+    MEMORY.forEach((m) => { m.name = tx(m.label); });
+    memoryBars($('f-mem'));
+    lineFigure($('f-gtt'), [
+      {label: {zh: '默认', en: 'Default'}, color: '--hud', pts: TIMELINE.def},
+      {label: {zh: '压缩', en: 'Compressed'}, color: '--hv2', pts: TIMELINE.cmp},
+    ]);
+    barFigure($('f-cases'), {rows: CASES, y: {zh: '速度（tok/s）', en: 'Speed (tok/s)'}});
+    ratioFigure($('f-ratio'));
+  }
+
+  function setLang(l) {
+    root.dataset.lang = l;
+    root.lang = l === 'en' ? 'en' : 'zh-CN';
+    document.querySelectorAll('.lang button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.lang === l)));
+    try { localStorage.setItem('svh-lang', l); } catch (e) { /* storage unavailable */ }
+    drawAll();
+  }
+
+  document.querySelectorAll('.lang button').forEach((b) => b.addEventListener('click', () => setLang(b.dataset.lang)));
+  let saved = null;
+  try { saved = localStorage.getItem('svh-lang'); } catch (e) { /* storage unavailable */ }
+  setLang(['zh', 'en', 'both'].includes(saved) ? saved : 'zh');
+
+  let raf = 0;
+  new ResizeObserver(() => { cancelAnimationFrame(raf); raf = requestAnimationFrame(drawAll); }).observe(document.querySelector('.page'));
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', drawAll);
+  if (document.fonts) document.fonts.ready.then(drawAll);
+
+  const navLinks = [...document.querySelectorAll('.modnav a')];
+  const markModule = (id) => navLinks.forEach((a) => a.setAttribute('aria-current', String(a.getAttribute('href') === `#${id}`)));
+  markModule('m-overview');
+  const moduleWatch = new IntersectionObserver((entries) => {
+    for (const e of entries) if (e.isIntersecting) markModule(e.target.id);
+  }, {rootMargin: '-20% 0px -75% 0px'});
+  document.querySelectorAll('.module').forEach((m) => moduleWatch.observe(m));
+</script>
+</body>
+</html>
