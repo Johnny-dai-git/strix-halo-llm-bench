@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use these results or the eval harness, please cite them as below."
+title: "Strix Halo LLM Bench: Halogen, Gufo and Strata on AMD Ryzen AI Max+ 395"
+type: dataset
+authors:
+  - alias: Johnny-dai-git
+repository-code: "https://github.com/Johnny-dai-git/strix-halo-llm-bench"
+url: "https://johnny-dai-git.github.io/strix-halo-llm-bench/"
+license: MIT
+date-released: 2026-11-12
+keywords:
+  - strix-halo
+  - ryzen-ai-max
+  - local-llm
+  - llm-inference
+  - benchmark
+  - qwen

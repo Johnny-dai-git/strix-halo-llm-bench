@@ -6,17 +6,17 @@
 <title>Halogen Memory Compression Test</title>
 <meta name="description" content="Halogen memory compression on a Ryzen AI Max+ 395 (128 GB): 14.8 GiB saved at almost the same speed, and Halogen vs Strata on the same model. 中文 / English.">
 <meta property="og:type" content="article">
-<meta property="og:site_name" content="Qwen3.8-Flash-Next local engine evals">
+<meta property="og:site_name" content="Strix Halo LLM Bench">
 <meta property="og:title" content="Halogen memory compression test">
 <meta property="og:description" content="Three Halogen settings save 14.8 GiB (89.0 → 74.2 GiB) at almost the same speed on a Ryzen AI Max+ 395; plus Halogen vs Strata. 中文 / English.">
-<meta property="og:url" content="https://johnny-dai-git.github.io/qwen38-flash-next-evals/memory.html">
-<meta property="og:image" content="https://johnny-dai-git.github.io/qwen38-flash-next-evals/assets/og-memory.png">
+<meta property="og:url" content="https://johnny-dai-git.github.io/strix-halo-llm-bench/memory.html">
+<meta property="og:image" content="https://johnny-dai-git.github.io/strix-halo-llm-bench/assets/og-memory.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Halogen memory compression test">
 <meta name="twitter:description" content="Three Halogen settings save 14.8 GiB (89.0 → 74.2 GiB) at almost the same speed on a Ryzen AI Max+ 395; plus Halogen vs Strata. 中文 / English.">
-<meta name="twitter:image" content="https://johnny-dai-git.github.io/qwen38-flash-next-evals/assets/og-memory.png">
+<meta name="twitter:image" content="https://johnny-dai-git.github.io/strix-halo-llm-bench/assets/og-memory.png">
 <meta name="theme-color" content="#13161b">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -379,12 +379,12 @@
       <li><span class="zh">Strata 对比：llm-probe.sh 给两个服务器发完全相同的请求（3 个短提示各生成 256 token；8K/32K/131K 提示各生成 128 token；同一个 3 万 token 长提示），每个提示都是新的，提示缓存帮不上忙；同时每 0.5 秒记录 GTT、可用内存、功耗和温度。Strata 标准测试用 strata bench run（standard-v1）；它不接受其他服务器，所以用 replay-bench.py 把同样 9 个性能请求原样发给 Halogen。两个引擎轮流单独运行，切换前确认显卡内存已释放。</span><span class="en">Strata comparison: llm-probe.sh sends identical requests to both servers (3 short prompts with 256 tokens out; 8K/32K/131K prompts with 128 tokens out; one 30K-token prompt), every prompt new so no prompt cache helps, while logging GTT, free memory, power and temperature every 0.5 s. Strata's standard benchmark is strata bench run (standard-v1); it accepts no other server, so replay-bench.py sent the same 9 performance requests unchanged to Halogen. The engines ran one at a time, with GPU memory confirmed released before each switch.</span></li>
     </ol>
     <p class="note"><span class="zh">来源：</span><span class="en">Sources: </span><a href="https://github.com/peonist-ai/halogen-flash-server/blob/main/docs/performance.md"><span class="zh">Halogen 性能文档</span><span class="en">Halogen performance docs</span></a> · <a href="https://github.com/peonist-ai/halogen-flash-server/blob/main/docs/FLAGS.md"><span class="zh">FLAGS 文档（KV8）</span><span class="en">FLAGS docs (KV8)</span></a> · <a href="https://github.com/peonist-ai/halogen-flash-server/blob/main/docs/configuration.md"><span class="zh">配置文档</span><span class="en">Configuration docs</span></a> · <a href="https://github.com/peonist-ai/halogen-flash-server/blob/main/docs/precision.md"><span class="zh">权重精度（ht43）</span><span class="en">Weight precision (ht43)</span></a></p>
-    <p class="note"><span class="zh">原始数据（CSV）：</span><span class="en">Raw data (CSV): </span><a href="https://github.com/Johnny-dai-git/qwen38-flash-next-evals/tree/main/data/memory-compression">data/memory-compression/</a></p>
+    <p class="note"><span class="zh">原始数据（CSV）：</span><span class="en">Raw data (CSV): </span><a href="https://github.com/Johnny-dai-git/strix-halo-llm-bench/tree/main/data/memory-compression">data/memory-compression/</a></p>
   </div>
 
   <footer class="foot">
     <p><span class="zh">由 <a href="https://github.com/Johnny-dai-git">Johnny-dai-git</a> 在自己的机器上测试和整理。</span><span class="en">Run and written up by <a href="https://github.com/Johnny-dai-git">Johnny-dai-git</a> on their own machine.</span></p>
-    <p><span class="zh">源码与数据：</span><span class="en">Source and data: </span><a href="https://github.com/Johnny-dai-git/qwen38-flash-next-evals">github.com/Johnny-dai-git/qwen38-flash-next-evals</a></p>
+    <p><span class="zh">源码与数据：</span><span class="en">Source and data: </span><a href="https://github.com/Johnny-dai-git/strix-halo-llm-bench">github.com/Johnny-dai-git/strix-halo-llm-bench</a></p>
   </footer>
 </div>
 

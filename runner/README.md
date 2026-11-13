@@ -1,6 +1,6 @@
 # eval-runner
 
-The accuracy harness behind the [Halogen vs Gufo vs Strata report](https://johnny-dai-git.github.io/qwen38-flash-next-evals/). It sends HumanEval, IFEval, GSM8K and MMLU-Pro to any OpenAI-compatible `/v1/chat/completions` endpoint, scores the replies, and saves every reply so results can be checked or re-scored later.
+The accuracy harness behind the [Halogen vs Gufo vs Strata report](https://johnny-dai-git.github.io/strix-halo-llm-bench/). It sends HumanEval, IFEval, GSM8K and MMLU-Pro to any OpenAI-compatible `/v1/chat/completions` endpoint, scores the replies, and saves every reply so results can be checked or re-scored later.
 
 [中文说明在下面](#中文)
 
@@ -66,7 +66,7 @@ All on one AMD Ryzen AI Max+ 395 with 128 GB, Ubuntu 26.04.1.
 
 ## 中文
 
-[Halogen vs Gufo vs Strata 报告](https://johnny-dai-git.github.io/qwen38-flash-next-evals/)背后的准确率评测工具。它把 HumanEval、IFEval、GSM8K、MMLU-Pro 发给任何 OpenAI 兼容的 `/v1/chat/completions` 接口，给回答打分，并保存每一条回答，方便以后核对或重新打分。
+[Halogen vs Gufo vs Strata 报告](https://johnny-dai-git.github.io/strix-halo-llm-bench/)背后的准确率评测工具。它把 HumanEval、IFEval、GSM8K、MMLU-Pro 发给任何 OpenAI 兼容的 `/v1/chat/completions` 接口，给回答打分，并保存每一条回答，方便以后核对或重新打分。
 
 **快速开始**：按上面 Quick start 的命令建虚拟环境、装依赖（`lm_eval` 用 `--no-deps` 安装，只用到它的 IFEval 评分代码），再运行 `fetch_data.py` 下载数据（4.7 MB，会校验 sha256）。然后用 `run_evals.py --base-url` 指向已启动的推理服务器；先加 `--limit 5` 冒烟测试。中途断了重跑同一条命令即可，已完成的题会跳过。`summarize.py` 生成汇总表。
 
