@@ -1,0 +1,222 @@
+{
+  "halogen-v2": {
+    "humaneval": {
+      "n": 164,
+      "acc": 0.9634146341463414,
+      "ci95": 0.028733892851896755,
+      "request_errors": 0,
+      "truncated": 1,
+      "no_answer": 0,
+      "avg_out_tokens": 234.79268292682926,
+      "total_minutes": 7.6691666666666665
+    },
+    "ifeval": {
+      "n": 541,
+      "acc": 0.8280961182994455,
+      "ci95": 0.03179366947130303,
+      "request_errors": 0,
+      "truncated": 23,
+      "no_answer": 0,
+      "avg_out_tokens": 313.52125693160815,
+      "total_minutes": 49.954166666666666,
+      "prompt_level_loose_acc": 0.8724584103512015,
+      "inst_level_strict_acc": 0.8848920863309353,
+      "inst_level_loose_acc": 0.9172661870503597
+    },
+    "gsm8k": {
+      "n": 1319,
+      "acc": 0.8771796815769523,
+      "ci95": 0.017713854160781858,
+      "request_errors": 0,
+      "truncated": 444,
+      "no_answer": 0,
+      "avg_out_tokens": 597.524639878696,
+      "total_minutes": 156.78516666666667
+    },
+    "mmlu_pro": {
+      "n": 1000,
+      "acc": 0.774,
+      "ci95": 0.025922732078235887,
+      "request_errors": 0,
+      "truncated": 142,
+      "no_answer": 139,
+      "avg_out_tokens": 990.055,
+      "total_minutes": 222.75233333333333,
+      "by_category": {
+        "biology": 0.9,
+        "business": 0.8181818181818182,
+        "chemistry": 0.7978723404255319,
+        "computer science": 0.7352941176470589,
+        "economics": 0.8285714285714286,
+        "engineering": 0.43209876543209874,
+        "health": 0.8382352941176471,
+        "history": 0.8125,
+        "law": 0.6923076923076923,
+        "math": 0.8482142857142857,
+        "other": 0.7272727272727273,
+        "philosophy": 0.8292682926829268,
+        "physics": 0.7962962962962963,
+        "psychology": 0.8484848484848485
+      }
+    }
+  },
+  "halogen-ud": {
+    "humaneval": {
+      "n": 164,
+      "acc": 0.9695121951219512,
+      "ci95": 0.02631321193044121,
+      "request_errors": 0,
+      "truncated": 2,
+      "no_answer": 0,
+      "avg_out_tokens": 243.46341463414635,
+      "total_minutes": 13.182166666666665
+    },
+    "ifeval": {
+      "n": 541,
+      "acc": 0.8484288354898336,
+      "ci95": 0.03021853756183644,
+      "request_errors": 0,
+      "truncated": 21,
+      "no_answer": 0,
+      "avg_out_tokens": 316.39001848428836,
+      "total_minutes": 75.45466666666667,
+      "prompt_level_loose_acc": 0.9001848428835489,
+      "inst_level_strict_acc": 0.8968824940047961,
+      "inst_level_loose_acc": 0.9328537170263789
+    },
+    "gsm8k": {
+      "n": 1319,
+      "acc": 0.8407884761182715,
+      "ci95": 0.01974532554726344,
+      "request_errors": 0,
+      "truncated": 661,
+      "no_answer": 0,
+      "avg_out_tokens": 691.9605761940865,
+      "total_minutes": 267.32016666666664
+    },
+    "mmlu_pro": {
+      "n": 1000,
+      "acc": 0.761,
+      "ci95": 0.026433054428120866,
+      "request_errors": 0,
+      "truncated": 155,
+      "no_answer": 150,
+      "avg_out_tokens": 1015.456,
+      "total_minutes": 333.2568333333333,
+      "by_category": {
+        "biology": 0.9,
+        "business": 0.803030303030303,
+        "chemistry": 0.7872340425531915,
+        "computer science": 0.6764705882352942,
+        "economics": 0.8,
+        "engineering": 0.38271604938271603,
+        "health": 0.8235294117647058,
+        "history": 0.78125,
+        "law": 0.6373626373626373,
+        "math": 0.8482142857142857,
+        "other": 0.7402597402597403,
+        "philosophy": 0.8536585365853658,
+        "physics": 0.7962962962962963,
+        "psychology": 0.8787878787878788
+      }
+    }
+  },
+  "gufo-ud": {
+    "humaneval": {
+      "n": 164,
+      "acc": 0.9695121951219512,
+      "ci95": 0.02631321193044121,
+      "request_errors": 0,
+      "truncated": 2,
+      "no_answer": 0,
+      "avg_out_tokens": 241.9390243902439,
+      "total_minutes": 8.558
+    },
+    "ifeval": {
+      "n": 541,
+      "acc": 0.8317929759704251,
+      "ci95": 0.03152006662092428,
+      "request_errors": 0,
+      "truncated": 16,
+      "no_answer": 0,
+      "avg_out_tokens": 302.49537892791125,
+      "total_minutes": 70.18716666666666,
+      "prompt_level_loose_acc": 0.8761552680221811,
+      "inst_level_strict_acc": 0.8872901678657075,
+      "inst_level_loose_acc": 0.9184652278177458
+    },
+    "gsm8k": {
+      "n": 1319,
+      "acc": 0.9598180439727066,
+      "ci95": 0.01059848197839012,
+      "request_errors": 0,
+      "truncated": 25,
+      "no_answer": 0,
+      "avg_out_tokens": 375.30174374526155,
+      "total_minutes": 133.60366666666667
+    },
+    "mmlu_pro": {
+      "n": 1000,
+      "acc": 0.772,
+      "ci95": 0.026003520253996378,
+      "request_errors": 0,
+      "truncated": 144,
+      "no_answer": 141,
+      "avg_out_tokens": 1003.778,
+      "total_minutes": 317.733,
+      "by_category": {
+        "biology": 0.8666666666666667,
+        "business": 0.8636363636363636,
+        "chemistry": 0.8085106382978723,
+        "computer science": 0.8235294117647058,
+        "economics": 0.8142857142857143,
+        "engineering": 0.38271604938271603,
+        "health": 0.8235294117647058,
+        "history": 0.84375,
+        "law": 0.6373626373626373,
+        "math": 0.8392857142857143,
+        "other": 0.7532467532467533,
+        "philosophy": 0.8536585365853658,
+        "physics": 0.7777777777777778,
+        "psychology": 0.8939393939393939
+      }
+    }
+  },
+  "strata-ud": {
+    "humaneval": {
+      "n": 164,
+      "acc": 0.975609756097561,
+      "ci95": 0.023609146456502396,
+      "request_errors": 0,
+      "truncated": 1,
+      "no_answer": 0,
+      "avg_out_tokens": 242.7987804878049,
+      "total_minutes": 19.92983333333333
+    },
+    "ifeval": {
+      "n": 73,
+      "acc": 0.9315068493150684,
+      "ci95": 0.0579443692443365,
+      "request_errors": 0,
+      "truncated": 2,
+      "no_answer": 0,
+      "avg_out_tokens": 351.67123287671234,
+      "total_minutes": 14.952,
+      "prompt_level_loose_acc": 0.958904109589041,
+      "inst_level_strict_acc": 0.9565217391304348,
+      "inst_level_loose_acc": 0.9739130434782609
+    }
+  },
+  "halogen-v2-aguard0": {
+    "gsm8k": {
+      "n": 1319,
+      "acc": 0.9605761940864291,
+      "ci95": 0.01050216548535274,
+      "request_errors": 0,
+      "truncated": 21,
+      "no_answer": 0,
+      "avg_out_tokens": 360.29871114480665,
+      "total_minutes": 95.74133333333333
+    }
+  }
+}

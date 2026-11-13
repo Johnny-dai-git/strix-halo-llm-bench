@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Qwen3.8-Flash-Next Local Engine Evals</title>
+<meta name="description" content="Accuracy of Qwen3.8-Flash-Next on HumanEval, IFEval, GSM8K and MMLU-Pro across Halogen, Gufo and Strata on one Strix Halo machine. 中英双语.">
+<style>
+:root {
+  color-scheme: light;
+  --bg: #fcfcfb;
+  --surface-2: #f3f2ef;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #75746e;
+  --grid: #e4e3df;
+  --border: #dcdbd6;
+  --accent: #2a78d6;
+  --halogen: #2a78d6;
+  --gufo: #eb6834;
+  --strata: #1baf7a;
+  --callout: #eef4fc;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #1a1a19;
+    --surface-2: #232322;
+    --text-primary: #f0efec;
+    --text-secondary: #c3c2b7;
+    --text-muted: #9a998f;
+    --grid: #30302e;
+    --border: #3a3a37;
+    --accent: #6da7ec;
+    --halogen: #3987e5;
+    --gufo: #d95926;
+    --strata: #199e70;
+    --callout: #1d2633;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #1a1a19;
+  --surface-2: #232322;
+  --text-primary: #f0efec;
+  --text-secondary: #c3c2b7;
+  --text-muted: #9a998f;
+  --grid: #30302e;
+  --border: #3a3a37;
+  --accent: #6da7ec;
+  --halogen: #3987e5;
+  --gufo: #d95926;
+  --strata: #199e70;
+  --callout: #1d2633;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--text-primary);
+  font: 16px/1.65 system-ui, -apple-system, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+}
+main { max-width: 920px; margin: 0 auto; padding: 24px 16px 64px; }
+a { color: var(--accent); }
+code { font: 0.88em/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: var(--surface-2); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+header.top { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 28px; }
+.kicker { font-size: 13px; color: var(--text-muted); letter-spacing: .02em; }
+.lang { display: inline-flex; border: 1px solid var(--border); border-radius: 999px; padding: 2px; flex: none; }
+.lang button { border: 0; background: transparent; color: var(--text-secondary); font: inherit; font-size: 14px; padding: 4px 12px; border-radius: 999px; cursor: pointer; }
+.lang button[aria-pressed="true"] { background: var(--text-primary); color: var(--bg); }
+h1 { font-size: clamp(26px, 5vw, 36px); line-height: 1.25; margin: 0 0 12px; letter-spacing: -.01em; }
+h2 { font-size: 22px; margin: 48px 0 12px; line-height: 1.3; }
+h3 { font-size: 17px; margin: 28px 0 8px; }
+.lede { font-size: 18px; color: var(--text-secondary); margin: 0 0 8px; }
+.meta { font-size: 14px; color: var(--text-muted); }
+.findings { list-style: none; padding: 0; margin: 20px 0 0; display: grid; gap: 12px; }
+.findings li { background: var(--surface-2); border-radius: 10px; padding: 14px 16px; }
+.findings b { display: block; margin-bottom: 2px; }
+.callout { background: var(--callout); border-radius: 10px; padding: 14px 16px; margin: 16px 0; }
+.chart-wrap { margin: 16px 0 8px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 14px; color: var(--text-secondary); margin: 8px 0 4px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.legend i.hollow { background: transparent !important; border: 2px solid var(--text-muted); }
+.panels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 28px; }
+@media (max-width: 680px) { .panels { grid-template-columns: 1fr; } }
+.panel h3 { margin: 12px 0 2px; font-size: 15px; }
+.panel .sub { font-size: 12.5px; color: var(--text-muted); margin: 0 0 4px; }
+svg text { font-family: inherit; }
+.note { font-size: 13.5px; color: var(--text-muted); }
+.table-scroll { overflow-x: auto; margin: 12px 0; -webkit-overflow-scrolling: touch; }
+table { border-collapse: collapse; width: 100%; font-size: 14.5px; font-variant-numeric: tabular-nums; }
+th, td { text-align: right; padding: 7px 10px; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+thead th { color: var(--text-secondary); font-weight: 600; border-bottom: 1px solid var(--border); white-space: normal; vertical-align: bottom; }
+td .ci { color: var(--text-muted); font-size: 12.5px; }
+td.na { color: var(--text-muted); }
+tr.hl td { font-weight: 600; }
+.cfg td, .cfg th { white-space: normal; text-align: left; vertical-align: top; }
+.swatch { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
+pre { background: var(--surface-2); padding: 12px 14px; border-radius: 8px; overflow-x: auto; font-size: 13px; line-height: 1.5; }
+#tip { position: fixed; pointer-events: none; background: var(--text-primary); color: var(--bg); font-size: 13px; line-height: 1.45; padding: 7px 10px; border-radius: 6px; max-width: 260px; opacity: 0; transition: opacity .08s; z-index: 10; }
+footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--grid); font-size: 13.5px; color: var(--text-muted); }
+[data-l] { white-space: normal; }
+</style>
+</head>
+<body>
+<main>
+  <header class="top">
+    <div class="kicker" data-l="kicker"></div>
+    <div class="lang" role="group" aria-label="Language">
+      <button type="button" data-set-lang="zh" aria-pressed="false">中文</button>
+      <button type="button" data-set-lang="en" aria-pressed="false">EN</button>
+    </div>
+  </header>
+
+  <h1 data-l="title"></h1>
+  <p class="lede" data-l="lede"></p>
+  <p class="meta" data-l="meta"></p>
+
+  <ul class="findings">
+    <li data-l="f1"></li>
+    <li data-l="f2"></li>
+    <li data-l="f3"></li>
+    <li data-l="f4"></li>
+  </ul>
+
+  <h2 data-l="h_results"></h2>
+  <p data-l="results_intro"></p>
+  <div class="legend" id="legend"></div>
+  <div class="chart-wrap panels" id="chart"></div>
+  <p class="note" data-l="chart_note"></p>
+
+  <h3 data-l="h_table"></h3>
+  <div class="table-scroll"><table id="main-table"></table></div>
+
+  <h2 data-l="h_gsm8k"></h2>
+  <div data-l="gsm8k_body"></div>
+  <div class="table-scroll"><table id="gsm-table"></table></div>
+  <pre id="gsm-example"></pre>
+
+  <h2 data-l="h_trunc"></h2>
+  <p data-l="trunc_intro"></p>
+  <div class="table-scroll"><table id="trunc-table"></table></div>
+  <p class="note" data-l="trunc_note"></p>
+
+  <h2 data-l="h_more"></h2>
+  <h3 data-l="h_ifeval"></h3>
+  <div class="table-scroll"><table id="ifeval-table"></table></div>
+  <h3 data-l="h_mmlu"></h3>
+  <div class="table-scroll"><table id="mmlu-table"></table></div>
+
+  <h2 data-l="h_setup"></h2>
+  <div class="table-scroll"><table class="cfg" id="cfg-table"></table></div>
+  <h3 data-l="h_method"></h3>
+  <div data-l="method"></div>
+  <h3 data-l="h_hw"></h3>
+  <div data-l="hw"></div>
+  <h3 data-l="h_limits"></h3>
+  <div data-l="limits"></div>
+
+  <footer data-l="footer"></footer>
+</main>
+<div id="tip" role="tooltip"></div>
+
+<script>
+const DATA = {"halogen-v2":{"humaneval":{"n":164,"acc":0.9634146341463414,"ci95":0.028733892851896755,"request_errors":0,"truncated":1,"no_answer":0,"avg_out_tokens":234.79268292682926,"total_minutes":7.6691666666666665},"ifeval":{"n":541,"acc":0.8280961182994455,"ci95":0.03179366947130303,"request_errors":0,"truncated":23,"no_answer":0,"avg_out_tokens":313.52125693160815,"total_minutes":49.954166666666666,"prompt_level_loose_acc":0.8724584103512015,"inst_level_strict_acc":0.8848920863309353,"inst_level_loose_acc":0.9172661870503597},"gsm8k":{"n":1319,"acc":0.8771796815769523,"ci95":0.017713854160781858,"request_errors":0,"truncated":444,"no_answer":0,"avg_out_tokens":597.524639878696,"total_minutes":156.78516666666667},"mmlu_pro":{"n":1000,"acc":0.774,"ci95":0.025922732078235887,"request_errors":0,"truncated":142,"no_answer":139,"avg_out_tokens":990.055,"total_minutes":222.75233333333333,"by_category":{"biology":0.9,"business":0.8181818181818182,"chemistry":0.7978723404255319,"computer science":0.7352941176470589,"economics":0.8285714285714286,"engineering":0.43209876543209874,"health":0.8382352941176471,"history":0.8125,"law":0.6923076923076923,"math":0.8482142857142857,"other":0.7272727272727273,"philosophy":0.8292682926829268,"physics":0.7962962962962963,"psychology":0.8484848484848485}}},"halogen-ud":{"humaneval":{"n":164,"acc":0.9695121951219512,"ci95":0.02631321193044121,"request_errors":0,"truncated":2,"no_answer":0,"avg_out_tokens":243.46341463414635,"total_minutes":13.182166666666665},"ifeval":{"n":541,"acc":0.8484288354898336,"ci95":0.03021853756183644,"request_errors":0,"truncated":21,"no_answer":0,"avg_out_tokens":316.39001848428836,"total_minutes":75.45466666666667,"prompt_level_loose_acc":0.9001848428835489,"inst_level_strict_acc":0.8968824940047961,"inst_level_loose_acc":0.9328537170263789},"gsm8k":{"n":1319,"acc":0.8407884761182715,"ci95":0.01974532554726344,"request_errors":0,"truncated":661,"no_answer":0,"avg_out_tokens":691.9605761940865,"total_minutes":267.32016666666664},"mmlu_pro":{"n":1000,"acc":0.761,"ci95":0.026433054428120866,"request_errors":0,"truncated":155,"no_answer":150,"avg_out_tokens":1015.456,"total_minutes":333.2568333333333,"by_category":{"biology":0.9,"business":0.803030303030303,"chemistry":0.7872340425531915,"computer science":0.6764705882352942,"economics":0.8,"engineering":0.38271604938271603,"health":0.8235294117647058,"history":0.78125,"law":0.6373626373626373,"math":0.8482142857142857,"other":0.7402597402597403,"philosophy":0.8536585365853658,"physics":0.7962962962962963,"psychology":0.8787878787878788}}},"gufo-ud":{"humaneval":{"n":164,"acc":0.9695121951219512,"ci95":0.02631321193044121,"request_errors":0,"truncated":2,"no_answer":0,"avg_out_tokens":241.9390243902439,"total_minutes":8.558},"ifeval":{"n":541,"acc":0.8317929759704251,"ci95":0.03152006662092428,"request_errors":0,"truncated":16,"no_answer":0,"avg_out_tokens":302.49537892791125,"total_minutes":70.18716666666666,"prompt_level_loose_acc":0.8761552680221811,"inst_level_strict_acc":0.8872901678657075,"inst_level_loose_acc":0.9184652278177458},"gsm8k":{"n":1319,"acc":0.9598180439727066,"ci95":0.01059848197839012,"request_errors":0,"truncated":25,"no_answer":0,"avg_out_tokens":375.30174374526155,"total_minutes":133.60366666666667},"mmlu_pro":{"n":1000,"acc":0.772,"ci95":0.026003520253996378,"request_errors":0,"truncated":144,"no_answer":141,"avg_out_tokens":1003.778,"total_minutes":317.733,"by_category":{"biology":0.8666666666666667,"business":0.8636363636363636,"chemistry":0.8085106382978723,"computer science":0.8235294117647058,"economics":0.8142857142857143,"engineering":0.38271604938271603,"health":0.8235294117647058,"history":0.84375,"law":0.6373626373626373,"math":0.8392857142857143,"other":0.7532467532467533,"philosophy":0.8536585365853658,"physics":0.7777777777777778,"psychology":0.8939393939393939}}},"strata-ud":{"humaneval":{"n":164,"acc":0.975609756097561,"ci95":0.023609146456502396,"request_errors":0,"truncated":1,"no_answer":0,"avg_out_tokens":242.7987804878049,"total_minutes":19.92983333333333},"ifeval":{"n":73,"acc":0.9315068493150684,"ci95":0.0579443692443365,"request_errors":0,"truncated":2,"no_answer":0,"avg_out_tokens":351.67123287671234,"total_minutes":14.952,"prompt_level_loose_acc":0.958904109589041,"inst_level_strict_acc":0.9565217391304348,"inst_level_loose_acc":0.9739130434782609}},"halogen-v2-aguard0":{"gsm8k":{"n":1319,"acc":0.9605761940864291,"ci95":0.01050216548535274,"request_errors":0,"truncated":21,"no_answer":0,"avg_out_tokens":360.29871114480665,"total_minutes":95.74133333333333}}};
+
+const SETUPS = [
+  { id: "halogen-v2", engine: "halogen", label: "Halogen · HGN v2" },
+  { id: "halogen-v2-aguard0", engine: "halogen", label: "Halogen · HGN v2 · guard off", aguard: true },
+  { id: "halogen-ud", engine: "halogen", label: "Halogen · UD-Q4_K_XL" },
+  { id: "gufo-ud", engine: "gufo", label: "Gufo · UD-Q4_K_XL" },
+  { id: "strata-ud", engine: "strata", label: "Strata · UD-Q4_K_XL" },
+];
+const TASKS = [
+  { id: "humaneval", name: "HumanEval", metric: { zh: "pass@1，164 题", en: "pass@1, 164 problems" } },
+  { id: "ifeval", name: "IFEval", metric: { zh: "prompt-level strict，541 题", en: "prompt-level strict, 541 prompts" } },
+  { id: "gsm8k", name: "GSM8K", metric: { zh: "准确率，1,319 题", en: "accuracy, 1,319 problems" } },
+  { id: "mmlu_pro", name: "MMLU-Pro", metric: { zh: "准确率，按学科分层抽样 1,000 题", en: "accuracy, 1,000-question stratified sample" } },
+];
+const ISSUE = "https://github.com/peonist-ai/halogen-flash-server/issues/259";
+
+const T = {
+  zh: {
+    kicker: "本地推理评测 · 2026 年 11 月",
+    title: "Qwen3.8-Flash-Next 在三个本地推理引擎上的准确率",
+    lede: "同一台 Strix Halo 机器、同一个模型、同一套题目，比较 Halogen、Gufo 和 Strata 跑出来的分数有没有差别。",
+    meta: "测试时间：2026-10-29 至 2026-11-12 · 关闭思考，贪心解码（温度 0） · 硬件：AMD Ryzen AI Max+ 395，128 GB",
+    f1: "<b>HumanEval、IFEval、MMLU-Pro：三个引擎打平。</b>跑完整的三套配置在这三项上的差距都落在 95% 置信区间内。",
+    f2: `<b>GSM8K：Halogen 默认设置低了约 8 个百分点，原因是 answer guard，不是模型。</b>Halogen v2 默认 87.7%，Gufo 96.0%。Halogen 的 answer guard 不让回答停在 <code>#### &lt;数字&gt;</code> 这一行，关掉它（<code>HALOGEN_ANSWER_GUARD=0</code>）后是 96.1%。已经报告给上游：<a href="${ISSUE}">halogen-flash-server#259</a>。`,
+    f3: "<b>Strata 只跑了一部分。</b>HumanEval 跑完了 164 题，IFEval 只跑了前 73 题就停了，GSM8K 和 MMLU-Pro 没跑。它的 IFEval 分数不能和其他配置直接比较。",
+    f4: "<b>MMLU-Pro 在三个引擎上都有约 14–15% 的题没给出答案。</b>这些回答写满了 2,048 token 上限，各引擎比例相近，所以不影响横向比较，但绝对分数会偏低。",
+    h_results: "总体结果",
+    results_intro: "每个点是一套配置在一项任务上的准确率，横线是 95% 置信区间。颜色代表引擎。",
+    chart_note: "横轴统一为 70%–100%。空心点表示题量不完整（Strata 的 IFEval 只有 73 题）。鼠标悬停或点按可以看具体数字。",
+    h_table: "数据表",
+    h_gsm8k: "GSM8K 的差距从哪来",
+    gsm8k_body: `<p>Halogen 0.18.15 加了一个 answer guard，用来防止长上下文里回答提前结束。它会阻止回答停在 Markdown 标题行上。GSM8K 要求最后一行写成 <code>#### &lt;数字&gt;</code>，guard 把这一行当成了标题，所以模型没法在这里结束，只能重复这一行、在后面补一个 json 代码块，或者不停往数字后面加 0，直到写满 1,024 token。</p>
+<p>对照实验里两次运行只差一个环境变量 <code>-e HALOGEN_ANSWER_GUARD=0</code>：</p>`,
+    h_trunc: "写满 token 上限的回答数",
+    trunc_intro: "回答写满 max_tokens 还没结束的题数。GSM8K 一列里 Halogen 默认设置的数字明显偏高，就是上面说的 answer guard 问题。",
+    trunc_note: "max_tokens：HumanEval 1,024，IFEval 1,280，GSM8K 1,024，MMLU-Pro 2,048。MMLU-Pro 中没给出答案的题按答错计。",
+    h_more: "细分数据",
+    h_ifeval: "IFEval 四个指标",
+    h_mmlu: "MMLU-Pro 各学科准确率",
+    h_setup: "测试配置",
+    h_method: "评测方法",
+    method: `<ul>
+<li>所有请求走 OpenAI 兼容的 <code>/v1/chat/completions</code>，一次只发一个请求。</li>
+<li>关闭思考（<code>chat_template_kwargs: {enable_thinking: false}</code>），温度 0，种子 0。</li>
+<li><b>HumanEval</b>：从回答中提取代码，在本机子进程里跑官方测试，每题 20 秒超时，计 pass@1。</li>
+<li><b>IFEval</b>：用 lm_eval 里的官方评分代码，主指标为 prompt-level strict。</li>
+<li><b>GSM8K</b>：提示要求最后一行写 <code>#### &lt;数字&gt;</code>，取回答里最后一个 <code>####</code> 后的数字；没有的话依次退回到 “answer is” 和最后一个数字。</li>
+<li><b>MMLU-Pro</b>：按学科分层抽 1,000 题（种子 1234），四套配置题目完全相同；用 “The answer is (X)” 提取选项。</li>
+<li>置信区间是二项分布的正态近似 95% 区间。</li>
+</ul>`,
+    h_hw: "硬件和软件",
+    hw: `<ul>
+<li>AMD Ryzen AI Max+ 395（Strix Halo），128 GB 统一内存</li>
+<li>Ubuntu 26.04.1，内核 7.0.0-42-generic，rootless Podman 5.7.0</li>
+<li>UD-Q4_K_XL 指 unsloth/Qwen3.8-Flash-Next-GGUF 的 UD-Q4_K_XL 量化（revision 38bb39e，已校验 sha256）</li>
+</ul>`,
+    h_limits: "局限",
+    limits: `<ul>
+<li>只测了关闭思考的模式。开启思考后分数和耗时都会不同。</li>
+<li>Halogen 的完整测试用的是 0.18.18。answer guard 问题在当前最新的 0.20.4 上仍然存在，但其他任务没有在 0.20.4 上重跑。</li>
+<li>Halogen + UD-Q4_K_XL 的 GSM8K（84.1%）同样有大量回答写满上限，很可能是同一个原因，但没有关掉 guard 重跑。</li>
+<li>每套配置每项只跑了一次。温度 0 下结果基本确定，但不同引擎的数值实现不同，个别题可能有出入。</li>
+</ul>`,
+    footer: `由 <a href="https://github.com/Johnny-dai-git">Johnny-dai-git</a> 测试和整理。原始汇总数据：<a href="data/summary.json">summary.json</a>。`,
+    th_setup: "配置", th_n: "题量", th_engine: "引擎", th_model: "模型文件", th_launch: "版本与启动参数",
+    th_default: "默认", th_off: "关闭 guard",
+    notrun: "未测", partial: "仅 73 题",
+    gsm_rows: ["准确率", "停在 <code>#### &lt;数字&gt;</code> 这一行", "答案后补一个 json 代码块再结束", "写满 1,024 token"],
+    if_metrics: ["Prompt strict（主指标）", "Prompt loose", "Instruction strict", "Instruction loose"],
+    tip_acc: "准确率", tip_ci: "95% 区间", tip_n: "题量", tip_trunc: "写满上限",
+    cat: { "biology": "生物", "business": "商科", "chemistry": "化学", "computer science": "计算机", "economics": "经济", "engineering": "工程", "health": "健康", "history": "历史", "law": "法律", "math": "数学", "other": "其他", "philosophy": "哲学", "physics": "物理", "psychology": "心理学" },
+    labels: { "halogen-v2": "Halogen · HGN v2", "halogen-v2-aguard0": "Halogen · HGN v2 · 关 guard", "halogen-ud": "Halogen · UD-Q4_K_XL", "gufo-ud": "Gufo · UD-Q4_K_XL", "strata-ud": "Strata · UD-Q4_K_XL" },
+    cfg: [
+      ["halogen-v2", "Halogen 0.18.18", "Halogen 原生 HGN v2 检查点（<code>qwen38-flash-next-v2.hgn</code>）", "模型卡上的默认启动命令，未设其他 <code>HALOGEN_*</code> 变量"],
+      ["halogen-v2-aguard0", "Halogen 0.18.18", "同上", "同上，加 <code>-e HALOGEN_ANSWER_GUARD=0</code>；只跑了 GSM8K"],
+      ["halogen-ud", "Halogen 0.18.18", "UD-Q4_K_XL GGUF（Halogen 启动时无损重打包），MTP 头和 tokenizer 用 Halogen 自带的", "<code>HALOGEN_CHECKPOINT</code> 指向 GGUF"],
+      ["gufo-ud", "Gufo 0.27.0", "UD-Q4_K_XL GGUF + MTP shared-Q8_0", "<code>gufo serve llm --speculative mtp --sessions 2 --context 32768</code>"],
+      ["strata-ud", "Strata 0.2.7（CLI 0.1.53，引擎 0.1.52 hip-halo）", "UD-Q4_K_XL GGUF", "<code>strata launch --family unsloth --model ud-q4_k_xl</code>；跑完 HumanEval 和 73 题 IFEval 后按计划停止"],
+    ],
+  },
+  en: {
+    kicker: "Local inference evals · November 2026",
+    title: "Qwen3.8-Flash-Next accuracy across three local inference engines",
+    lede: "Same Strix Halo machine, same model, same questions: does the score change between Halogen, Gufo and Strata?",
+    meta: "Run 2026-10-29 to 2026-11-12 · thinking off, greedy decoding (temperature 0) · AMD Ryzen AI Max+ 395, 128 GB",
+    f1: "<b>HumanEval, IFEval, MMLU-Pro: the engines are tied.</b> For the three complete setups, every difference on these tasks is inside the 95% interval.",
+    f2: `<b>GSM8K: Halogen's default is about 8 points lower because of its answer guard, not the model.</b> Halogen v2 scores 87.7% by default and Gufo 96.0%. Halogen's answer guard won't let a reply end on the <code>#### &lt;number&gt;</code> line; with <code>HALOGEN_ANSWER_GUARD=0</code> it scores 96.1%. Reported upstream as <a href="${ISSUE}">halogen-flash-server#259</a>.`,
+    f3: "<b>Strata is a partial run.</b> It finished all 164 HumanEval problems and the first 73 IFEval prompts, then stopped; GSM8K and MMLU-Pro weren't run. Its IFEval score isn't directly comparable with the others.",
+    f4: "<b>About 14–15% of MMLU-Pro replies give no answer on every engine.</b> They run into the 2,048-token limit. The rate is similar across engines, so the comparison holds, but absolute scores are lower than they would be with a higher limit.",
+    h_results: "Results",
+    results_intro: "Each dot is one setup's accuracy on one task; the line is the 95% interval. Color marks the engine.",
+    chart_note: "All panels share a 70%–100% axis. A hollow dot means an incomplete run (Strata's IFEval has 73 prompts). Hover or tap a dot for the numbers.",
+    h_table: "Table",
+    h_gsm8k: "Where the GSM8K gap comes from",
+    gsm8k_body: `<p>Halogen 0.18.15 added an answer guard to stop replies from ending early deep in a long context. It keeps a reply from ending on a Markdown heading line. GSM8K asks for a final <code>#### &lt;number&gt;</code> line, which the guard treats as a heading, so the model can't stop there. It repeats the line, appends a json code block, or keeps adding zeros to the number until it hits 1,024 tokens.</p>
+<p>In the comparison below, the only difference between the two runs is <code>-e HALOGEN_ANSWER_GUARD=0</code>:</p>`,
+    h_trunc: "Replies that hit the token limit",
+    trunc_intro: "Number of replies still going when they reached max_tokens. The high GSM8K counts for Halogen's default runs are the answer-guard problem above.",
+    trunc_note: "max_tokens: HumanEval 1,024, IFEval 1,280, GSM8K 1,024, MMLU-Pro 2,048. An MMLU-Pro reply with no answer counts as wrong.",
+    h_more: "Breakdowns",
+    h_ifeval: "IFEval, all four metrics",
+    h_mmlu: "MMLU-Pro accuracy by subject",
+    h_setup: "Setups",
+    h_method: "Method",
+    method: `<ul>
+<li>All requests go to the OpenAI-compatible <code>/v1/chat/completions</code>, one at a time.</li>
+<li>Thinking off (<code>chat_template_kwargs: {enable_thinking: false}</code>), temperature 0, seed 0.</li>
+<li><b>HumanEval</b>: code is extracted from the reply and run against the official tests in a local subprocess, 20 s timeout per problem, scored as pass@1.</li>
+<li><b>IFEval</b>: lm_eval's official scoring code; the headline metric is prompt-level strict.</li>
+<li><b>GSM8K</b>: the prompt asks for a final <code>#### &lt;number&gt;</code> line; the score uses the number after the last <code>####</code>, falling back to "answer is" and then the last number.</li>
+<li><b>MMLU-Pro</b>: 1,000 questions sampled per subject (seed 1234), identical for every setup; the choice is read from "The answer is (X)".</li>
+<li>Intervals are normal-approximation 95% binomial intervals.</li>
+</ul>`,
+    h_hw: "Hardware and software",
+    hw: `<ul>
+<li>AMD Ryzen AI Max+ 395 (Strix Halo), 128 GB unified memory</li>
+<li>Ubuntu 26.04.1, kernel 7.0.0-42-generic, rootless Podman 5.7.0</li>
+<li>UD-Q4_K_XL is unsloth/Qwen3.8-Flash-Next-GGUF's UD-Q4_K_XL quant (revision 38bb39e, sha256-checked)</li>
+</ul>`,
+    h_limits: "Limitations",
+    limits: `<ul>
+<li>Thinking-off only. Scores and run times will differ with thinking on.</li>
+<li>The full Halogen runs used 0.18.18. The answer-guard problem still reproduces on 0.20.4, the latest release, but the other tasks weren't re-run there.</li>
+<li>Halogen + UD-Q4_K_XL on GSM8K (84.1%) also has many replies that hit the limit, likely for the same reason, but it wasn't re-run with the guard off.</li>
+<li>Each setup ran each task once. At temperature 0 that is nearly deterministic, but engines differ numerically and a few questions could flip.</li>
+</ul>`,
+    footer: `Run and written up by <a href="https://github.com/Johnny-dai-git">Johnny-dai-git</a>. Raw summary data: <a href="data/summary.json">summary.json</a>.`,
+    th_setup: "Setup", th_n: "n", th_engine: "Engine", th_model: "Model file", th_launch: "Version and launch options",
+    th_default: "Default", th_off: "Guard off",
+    notrun: "not run", partial: "73 only",
+    gsm_rows: ["Accuracy", "Ends on the <code>#### &lt;number&gt;</code> line", "Appends a json block after the answer, then ends", "Hits 1,024 tokens"],
+    if_metrics: ["Prompt strict (headline)", "Prompt loose", "Instruction strict", "Instruction loose"],
+    tip_acc: "Accuracy", tip_ci: "95% interval", tip_n: "n", tip_trunc: "Hit limit",
+    cat: null,
+    labels: { "halogen-v2": "Halogen · HGN v2", "halogen-v2-aguard0": "Halogen · HGN v2 · guard off", "halogen-ud": "Halogen · UD-Q4_K_XL", "gufo-ud": "Gufo · UD-Q4_K_XL", "strata-ud": "Strata · UD-Q4_K_XL" },
+    cfg: [
+      ["halogen-v2", "Halogen 0.18.18", "Halogen's native HGN v2 checkpoint (<code>qwen38-flash-next-v2.hgn</code>)", "Default launch command from the model card, no other <code>HALOGEN_*</code> variables"],
+      ["halogen-v2-aguard0", "Halogen 0.18.18", "Same as above", "Same, plus <code>-e HALOGEN_ANSWER_GUARD=0</code>; GSM8K only"],
+      ["halogen-ud", "Halogen 0.18.18", "UD-Q4_K_XL GGUF (losslessly repacked by Halogen at start), Halogen's own MTP head and tokenizer", "<code>HALOGEN_CHECKPOINT</code> pointed at the GGUF"],
+      ["gufo-ud", "Gufo 0.27.0", "UD-Q4_K_XL GGUF + MTP shared-Q8_0", "<code>gufo serve llm --speculative mtp --sessions 2 --context 32768</code>"],
+      ["strata-ud", "Strata 0.2.7 (CLI 0.1.53, engine 0.1.52 hip-halo)", "UD-Q4_K_XL GGUF", "<code>strata launch --family unsloth --model ud-q4_k_xl</code>; stopped as planned after HumanEval and 73 IFEval prompts"],
+    ],
+  },
+};
+
+const pct = (x, d = 1) => (x * 100).toFixed(d);
+const NS = "http://www.w3.org/2000/svg";
+const el = (tag, attrs = {}, parent) => { const n = document.createElementNS(NS, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); if (parent) parent.appendChild(n); return n; };
+let lang = "zh";
+
+function cell(s, t) { return DATA[s] && DATA[s][t]; }
+
+function drawChart() {
+  const L = T[lang], box = document.getElementById("chart");
+  box.innerHTML = "";
+  const lg = document.getElementById("legend");
+  lg.innerHTML = [["halogen", "Halogen"], ["gufo", "Gufo"], ["strata", "Strata"]]
+    .map(([k, n]) => `<span><i style="background:var(--${k})"></i>${n}</span>`).join("") +
+    `<span><i class="hollow"></i>${lang === "zh" ? "题量不完整" : "incomplete run"}</span>`;
+  const LO = 0.70, HI = 1.0;
+  for (const task of TASKS) {
+    const rows = SETUPS.filter(s => cell(s.id, task.id) || (!s.aguard && s.id !== "halogen-v2-aguard0"));
+    const p = document.createElement("div"); p.className = "panel";
+    p.innerHTML = `<h3>${task.name}</h3><p class="sub">${task.metric[lang]}</p>`;
+    box.appendChild(p);
+    const W = 420, labelW = 0, rowH = 40, top = 6, bottom = 26, H = top + rows.length * rowH + bottom;
+    const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, width: "100%", role: "img", "aria-label": task.name }, p);
+    const x0 = 16, x1 = W - 56;
+    const X = v => x0 + (Math.max(LO, Math.min(HI, v)) - LO) / (HI - LO) * (x1 - x0);
+    for (let g = LO; g <= HI + 1e-9; g += 0.05) {
+      el("line", { x1: X(g), x2: X(g), y1: top, y2: H - bottom, stroke: "var(--grid)", "stroke-width": 1 }, svg);
+      const tx = el("text", { x: X(g), y: H - 8, "text-anchor": "middle", "font-size": 11, fill: "var(--text-muted)" }, svg);
+      tx.textContent = Math.round(g * 100) + "%";
+    }
+    rows.forEach((s, i) => {
+      const y = top + i * rowH, cy = y + 27;
+      const lab = el("text", { x: 4, y: y + 12, "font-size": 12, fill: "var(--text-secondary)" }, svg);
+      lab.textContent = L.labels[s.id];
+      const c = cell(s.id, task.id);
+      if (!c) {
+        const na = el("text", { x: X(LO) , y: cy + 4, "font-size": 12, fill: "var(--text-muted)", "font-style": "italic" }, svg);
+        na.textContent = L.notrun; return;
+      }
+      const color = `var(--${s.engine})`, partial = s.id === "strata-ud" && task.id === "ifeval";
+      el("line", { x1: X(c.acc - c.ci95), x2: X(c.acc + c.ci95), y1: cy, y2: cy, stroke: color, "stroke-width": 2, "stroke-linecap": "round", opacity: 0.55 }, svg);
+      el("circle", { cx: X(c.acc), cy, r: 6, fill: partial ? "var(--bg)" : color, stroke: partial ? color : "var(--bg)", "stroke-width": partial ? 2.5 : 2 }, svg);
+      const val = el("text", { x: x1 + 8, y: cy + 4, "font-size": 12, "font-weight": 600, fill: "var(--text-primary)" }, svg);
+      val.textContent = pct(c.acc) + "%";
+      const hit = el("rect", { x: 0, y, width: W, height: rowH, fill: "transparent", tabindex: 0 }, svg);
+      const html = `<b>${L.labels[s.id]} · ${task.name}</b><br>${L.tip_acc}: ${pct(c.acc)}%<br>${L.tip_ci}: ${pct(c.acc - c.ci95)}–${pct(Math.min(1, c.acc + c.ci95))}%<br>${L.tip_n}: ${c.n.toLocaleString()}<br>${L.tip_trunc}: ${c.truncated}`;
+      const show = e => { const tip = document.getElementById("tip"); tip.innerHTML = html; tip.style.opacity = 1;
+        const r = e.clientX !== undefined && e.clientX ? { x: e.clientX, y: e.clientY } : (() => { const b = hit.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top }; })();
+        const tw = tip.offsetWidth; tip.style.left = Math.max(8, Math.min(window.innerWidth - tw - 8, r.x + 12)) + "px"; tip.style.top = (r.y + 14) + "px"; };
+      const hide = () => document.getElementById("tip").style.opacity = 0;
+      hit.addEventListener("pointermove", show); hit.addEventListener("pointerdown", show);
+      hit.addEventListener("pointerleave", hide); hit.addEventListener("focus", show); hit.addEventListener("blur", hide);
+    });
+  }
+}
+
+function tables() {
+  const L = T[lang];
+  const sw = s => `<span class="swatch" style="background:var(--${SETUPS.find(x => x.id === s).engine})"></span>`;
+  // main
+  let h = `<thead><tr><th>${L.th_setup}</th>${TASKS.map(t => `<th>${t.name}</th>`).join("")}</tr></thead><tbody>`;
+  for (const s of SETUPS) {
+    h += `<tr><td>${sw(s.id)}${L.labels[s.id]}</td>`;
+    for (const t of TASKS) {
+      const c = cell(s.id, t.id);
+      if (!c) { h += `<td class="na">—</td>`; continue; }
+      const extra = c.n !== { humaneval: 164, ifeval: 541, gsm8k: 1319, mmlu_pro: 1000 }[t.id] ? ` <span class="ci">(n=${c.n})</span>` : "";
+      h += `<td>${pct(c.acc)} <span class="ci">± ${pct(c.ci95)}</span>${extra}</td>`;
+    }
+    h += "</tr>";
+  }
+  document.getElementById("main-table").innerHTML = h + "</tbody>";
+  // gsm8k guard comparison (from the per-reply analysis of the two runs)
+  const g = [["87.7% (1,157)", "<b>96.1%</b> (1,267)"], ["1", "1,297"], ["861", "0"], ["444", "21"]];
+  document.getElementById("gsm-table").innerHTML =
+    `<thead><tr><th>Halogen v2 · GSM8K · 1,319</th><th>${L.th_default}</th><th>${L.th_off}</th></tr></thead><tbody>` +
+    L.gsm_rows.map((r, i) => `<tr${i === 0 ? ' class="hl"' : ""}><td>${r}</td><td>${g[i][0]}</td><td>${g[i][1]}</td></tr>`).join("") + "</tbody>";
+  document.getElementById("gsm-example").textContent = lang === "zh"
+    ? "# 第 7 题，标准答案 160，默认设置下的回答结尾：\n#### 160\n#### 160\n#### 160\n…（一直重复到 1,024 token）\n#### 1        ← 最后一行被截断，按 1 计分\n\n# 关闭 guard：463 token 后停在 “#### 160”，答对。"
+    : "# Question 7, gold answer 160. End of the default reply:\n#### 160\n#### 160\n#### 160\n… (repeats until 1,024 tokens)\n#### 1        <- last line is cut off and scored as 1\n\n# Guard off: stops on \"#### 160\" after 463 tokens, correct.";
+  // truncation
+  h = `<thead><tr><th>${L.th_setup}</th>${TASKS.map(t => `<th>${t.name}</th>`).join("")}</tr></thead><tbody>`;
+  for (const s of SETUPS) {
+    h += `<tr><td>${sw(s.id)}${L.labels[s.id]}</td>` + TASKS.map(t => { const c = cell(s.id, t.id); return c ? `<td>${c.truncated} <span class="ci">/ ${c.n.toLocaleString()}</span></td>` : `<td class="na">—</td>`; }).join("") + "</tr>";
+  }
+  document.getElementById("trunc-table").innerHTML = h + "</tbody>";
+  // ifeval
+  const ifs = SETUPS.filter(s => cell(s.id, "ifeval"));
+  const keys = ["acc", "prompt_level_loose_acc", "inst_level_strict_acc", "inst_level_loose_acc"];
+  h = `<thead><tr><th></th>${ifs.map(s => `<th>${sw(s.id)}${L.labels[s.id]}${s.id === "strata-ud" ? ` <span class="ci">(${L.partial})</span>` : ""}</th>`).join("")}</tr></thead><tbody>`;
+  keys.forEach((k, i) => { h += `<tr><td>${L.if_metrics[i]}</td>${ifs.map(s => `<td>${pct(cell(s.id, "ifeval")[k])}</td>`).join("")}</tr>`; });
+  document.getElementById("ifeval-table").innerHTML = h + "</tbody>";
+  // mmlu
+  const ms = SETUPS.filter(s => cell(s.id, "mmlu_pro"));
+  const cats = Object.keys(cell("halogen-v2", "mmlu_pro").by_category).sort();
+  h = `<thead><tr><th></th>${ms.map(s => `<th>${sw(s.id)}${L.labels[s.id]}</th>`).join("")}</tr></thead><tbody>`;
+  for (const c of cats) {
+    const vals = ms.map(s => cell(s.id, "mmlu_pro").by_category[c]);
+    h += `<tr><td>${L.cat ? L.cat[c] : c[0].toUpperCase() + c.slice(1)}</td>${vals.map(v => `<td>${pct(v)}</td>`).join("")}</tr>`;
+  }
+  h += `<tr class="hl"><td>${lang === "zh" ? "总计" : "Overall"}</td>${ms.map(s => `<td>${pct(cell(s.id, "mmlu_pro").acc)}</td>`).join("")}</tr>`;
+  document.getElementById("mmlu-table").innerHTML = h + "</tbody>";
+  // config
+  h = `<thead><tr><th>${L.th_setup}</th><th>${L.th_engine}</th><th>${L.th_model}</th><th>${L.th_launch}</th></tr></thead><tbody>`;
+  for (const r of L.cfg) h += `<tr><td>${sw(r[0])}${L.labels[r[0]]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td></tr>`;
+  document.getElementById("cfg-table").innerHTML = h + "</tbody>";
+}
+
+function setLang(l) {
+  lang = l === "en" ? "en" : "zh";
+  document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
+  document.title = lang === "zh" ? "Qwen3.8-Flash-Next 本地引擎评测" : "Qwen3.8-Flash-Next Local Engine Evals";
+  document.querySelectorAll("[data-l]").forEach(n => { n.innerHTML = T[lang][n.dataset.l]; });
+  document.querySelectorAll("[data-set-lang]").forEach(b => b.setAttribute("aria-pressed", b.dataset.setLang === lang));
+  drawChart(); tables();
+  try { localStorage.setItem("lang", lang); } catch (e) {}
+}
+document.querySelectorAll("[data-set-lang]").forEach(b => b.addEventListener("click", () => setLang(b.dataset.setLang)));
+let init = new URLSearchParams(location.search).get("lang");
+if (!init) { try { init = localStorage.getItem("lang"); } catch (e) {} }
+if (!init) init = (navigator.language || "").toLowerCase().startsWith("zh") ? "zh" : "en";
+setLang(init);
+</script>
+</body>
+</html>
