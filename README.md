@@ -2,6 +2,8 @@
 
 **网页 / Page:** https://johnny-dai-git.github.io/qwen38-flash-next-evals/
 
+[![Halogen vs Gufo vs Strata](assets/og.png)](https://johnny-dai-git.github.io/qwen38-flash-next-evals/)
+
 ## 中文
 
 在同一台 AMD Ryzen AI Max+ 395（Strix Halo，128 GB）上，比较 Halogen、Gufo、Strata 三个本地推理引擎跑 Qwen3.8-Flash-Next 的速度、内存、困惑度（PPL）和准确率。网页是完整报告；下表只列准确率（关闭思考，温度 0）。
