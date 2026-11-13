@@ -1,0 +1,16 @@
+== 0.34.0 nodraft-pp 2026-11-13T10:22:31-05:00 profile=performance
+Model loaded in 20016 ms (success).
+| model                            |       size | backend    |               test |                   t/s |
+| -------------------------------- | ---------- | ---------- | ------------------ | --------------------- |
+| Qwen3.8 Flash Next               | 103.69 GiB | ROCm (HIP) |             pp2048 |       1746.22 ± 3.49 |
+| Qwen3.8 Flash Next               | 103.69 GiB | ROCm (HIP) |             pp8192 |       1790.27 ± 3.22 |
+| Qwen3.8 Flash Next               | 103.69 GiB | ROCm (HIP) |            pp32768 |       1722.68 ± 4.06 |
+| Qwen3.8 Flash Next               | 103.69 GiB | ROCm (HIP) |           pp131072 |       1631.73 ± 1.09 |
+| Qwen3.8 Flash Next               | 103.69 GiB | ROCm (HIP) |              tg128 |         30.45 ± 0.16 |
+== 0.34.0 mtp-tg 2026-11-13T10:30:08-05:00 profile=performance
+Model loaded in 20898 ms (success).
+| model                            |       size | backend    |               test |                   t/s |
+| -------------------------------- | ---------- | ---------- | ------------------ | --------------------- |
+| Qwen3.8 Flash Next               | 103.69 GiB | ROCm (HIP) |             pp2048 |       1665.43 ± 5.85 |
+| Qwen3.8 Flash Next               | 103.69 GiB | ROCm (HIP) |              tg128 |         62.33 ± 0.37 |
+[exited with code 0]

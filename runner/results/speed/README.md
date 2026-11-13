@@ -21,6 +21,21 @@ Same machine (Ryzen AI Max+ 395, 128 GB), same weights (Unsloth UD-Q4_K_XL + MTP
 - 0.27 → 0.34: about +4–5% prompt speed, +3% plain decode, **+28% decode with MTP**. The MTP gain matches 0.28.1's "end MTP chains at the first unconfident draft".
 - pp2048 is now 4% below the published 1,801 (it was 16% below).
 
+### IOMMU passthrough (`iommu=pt`)
+
+The maintainer also suggested disabling IOMMU. Re-run of 0.34.0 after booting with `iommu=pt` (all IOMMU groups `identity`, previously `DMA-FQ`); raw output in `gufo-bench-2026-11-13-iommu-pt.txt`. The same reboot also moved the kernel from 7.0.0-42 to 7.0.0-43, so this column changes both.
+
+| Test | 0.34.0, IOMMU translated | 0.34.0, `iommu=pt` | Change |
+|---|---:|---:|---:|
+| pp2048, no drafting | 1,729 | 1,746 | +1.0% |
+| pp8192, no drafting | 1,777 | 1,790 | +0.7% |
+| pp32768, no drafting | 1,722 | 1,723 | 0% |
+| pp131072, no drafting | 1,638 | 1,632 | −0.4% |
+| tg128, no drafting | 30.45 | 30.45 | 0% |
+| tg128, MTP | 62.29 | 62.33 | 0% |
+
+Within about 1% either way, so IOMMU is not what separates this machine from the published pp2048 (now 3% below 1,801).
+
 ## API probe (speed_probe.py)
 
 `probe-run.sh` starts the server (1 session, 262K context, MTP) and runs `../../speed_probe.py`; results in `gufo-0.27.0-performance.json` and `gufo-0.34.0-performance.json`. Streaming, greedy, thinking off, prompts built from a fixed seed so both versions get identical requests. The original `llm-probe.sh` prompts were not kept, so compare the two columns here with each other, not with the main report.

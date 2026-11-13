@@ -386,8 +386,8 @@
 <h3 class="sec"><span class="zh">2026-11-13 更新：Gufo 0.34 复测</span><span class="en">Update, 2026-11-13: Gufo 0.34 re-run</span></h3>
 <p class="zh">Gufo 维护者在 <a href="https://github.com/gufo-org/gufo/discussions/1208">讨论帖 #1208</a> 里指出新版更快，并建议用性能电源模式。上面所有图表是 Gufo 0.27.0、平衡模式下的结果，保持原样；这里只重测了 Gufo，Halogen 和 Strata 没有重测，所以不和它们比较。0.27.0 在同样条件下也重跑了一遍作为对照，把版本和电源模式的影响分开。IOMMU 保持开启。</p>
 <p class="en">A Gufo maintainer pointed out in <a href="https://github.com/gufo-org/gufo/discussions/1208">discussion #1208</a> that newer releases are faster and suggested the performance power profile. Every figure above is Gufo 0.27.0 on the balanced profile and stays as measured. Only Gufo was re-run here; Halogen and Strata were not, so this is not a comparison with them. Gufo 0.27.0 was re-run under the same conditions as a control, to separate the version from the power profile. IOMMU was left on.</p>
-<p class="zh"><b>结论：</b>性能模式让读提示快约 9%，生成不变；0.34 再让读提示快 4–5%，开 MTP 的生成快 28%（48.8 → 62.3 tok/s）。pp2048 现在比官方 1,801 只低 4%（之前低 16%）。</p>
-<p class="en"><b>Result:</b> the performance profile makes prompt reading about 9% faster with no change in decode; 0.34 adds 4–5% on prompts and 28% on MTP decode (48.8 → 62.3 tok/s). pp2048 is now 4% below the published 1,801 (it was 16% below).</p>
+<p class="zh"><b>结论：</b>性能模式让读提示快约 9%，生成不变；0.34 再让读提示快 4–5%，开 MTP 的生成快 28%（48.8 → 62.3 tok/s）。pp2048 现在比官方 1,801 只低 4%（之前低 16%）。之后又按建议用 <code>iommu=pt</code> 重启再测（同时内核从 7.0.0-42 升到 -43），各项变化都在 ±1% 以内（pp2048 1,746），说明 IOMMU 不是剩下差距的原因。</p>
+<p class="en"><b>Result:</b> the performance profile makes prompt reading about 9% faster with no change in decode; 0.34 adds 4–5% on prompts and 28% on MTP decode (48.8 → 62.3 tok/s). pp2048 is now 4% below the published 1,801 (it was 16% below). A further run after rebooting with <code>iommu=pt</code> (the kernel also moved from 7.0.0-42 to -43) changed every number by 1% or less (pp2048 1,746), so IOMMU is not what accounts for the rest.</p>
 <div class="wrap">
       <table>
         <thead><tr>
